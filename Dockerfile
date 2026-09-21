@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Instalar dependencias del sistema y herramientas
+# Instalar dependencias del sistema y Node.js
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -25,13 +25,14 @@ RUN a2enmod rewrite
 
 WORKDIR /var/www/html
 
+# Copiar todo el código fuente
 COPY . .
 
-# Instalar dependencias de PHP y compilar el frontend (React/Vite)
+# Instalar dependencias de PHP y compilar el frontend con Node/Vite
 RUN composer install --no-dev --optimize-autoloader
 RUN npm install && npm run build
 
-# Configurar permisos de almacenamiento
+# Configurar permisos de almacenamiento y caché de Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
@@ -40,7 +41,7 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -s 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -s 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-# Script de entrada para limpiar caché, migrar base de datos y arrankar Apache
+# Script de entrada para limpiar caché, migrar y arrancar Apache
 RUN echo '#!/bin/bash' > /usr/local/bin/docker-entrypoint.sh \
     && echo 'php artisan config:clear' >> /usr/local/bin/docker-entrypoint.sh \
     && echo 'php artisan cache:clear' >> /usr/local/bin/docker-entrypoint.sh \
