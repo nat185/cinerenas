@@ -1,4 +1,4 @@
-import{u as l,j as e,H as c,L as m}from"./app-CIRBz5MX.js";function x({auth:t,title:a,children:n}){const{post:s}=l(),r=o=>{o.preventDefault(),s(route("logout"))},i=t?.user?.role?t.user.role.toUpperCase():"EDITOR";return e.jsxs("div",{className:"bg-black text-white",style:{minHeight:"100vh",display:"flex",flexDirection:"column"},children:[e.jsx(c,{title:a?`${a} - CineReseñas`:"CineReseñas"}),e.jsx("style",{children:`
+import{u as l,j as e,H as c,L as m}from"./app-DKkYKkj3.js";function x({auth:t,title:a,children:n}){const{post:s}=l(),r=o=>{o.preventDefault(),s(route("logout"))},i=t?.user?.role?t.user.role.toUpperCase():"EDITOR";return e.jsxs("div",{className:"bg-black text-white",style:{minHeight:"100vh",display:"flex",flexDirection:"column"},children:[e.jsx(c,{title:a?`${a} - CineReseñas`:"CineReseñas"}),e.jsx("style",{children:`
                 #mainNav.navbar-shrink .dynamic-text {
                     color: #212529 !important;
                 }
