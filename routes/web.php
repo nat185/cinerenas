@@ -48,7 +48,7 @@ Route::middleware(['auth'])->group(function () {
         return redirect()->route('user.catalogo');
     })->name('dashboard');
 
-    // Panel exclusivo para Administradores (Renderiza Admin/Dashboard.jsx)
+    // Panel exclusivo para Administradores
     Route::get('/admin/dashboard', function () {
         /** @var \App\Models\User $user */
         $user = Auth::user();
@@ -59,7 +59,7 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
 
-    // Panel exclusivo para Editores (Renderiza Editor/Dashboard.jsx)
+    // Panel exclusivo para Editores
     Route::get('/editor/dashboard', function () {
         /** @var \App\Models\User $user */
         $user = Auth::user();
@@ -70,7 +70,7 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Editor/Dashboard');
     })->name('editor.dashboard');
 
-    // Apartado para Usuarios Registrados (Renderiza User/Catalogo.jsx)
+    // Apartado para Usuarios Registrados
     Route::get('/peliculas-series', function () {
         return Inertia::render('User/Catalogo');
     })->name('user.catalogo');

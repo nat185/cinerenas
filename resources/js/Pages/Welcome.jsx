@@ -46,13 +46,13 @@ export default function Welcome() {
                                     </li>
                                 </>
                             ) : (
-                                // Si NO está logueado (Mostramos Iniciar Sesión y Registrarse)
+                                // Si NO está logueado (Mostramos Iniciar Sesión y Registrarse apuntando a /registro)
                                 <>
                                     <li className="nav-item">
                                         <Link className="nav-link" href="/login">Iniciar Sesión</Link>
                                     </li>
                                     <li className="nav-item">
-                                        <Link className="nav-link" href="/register">Registrarse</Link>
+                                        <Link className="nav-link" href="/registro">Registrarse</Link>
                                     </li>
                                 </>
                             )}
