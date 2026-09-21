@@ -20,6 +20,9 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 RUN chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions pdo_mysql mysqli mbstring exif pcntl bcmath gd
 
+# Asegurar que la extensión de pdo_mysql esté activa para Apache
+RUN docker-php-ext-enable pdo_mysql
+
 # Habilitar mod_rewrite de Apache
 RUN a2enmod rewrite
 
