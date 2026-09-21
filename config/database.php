@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Str;
-use Pdo\Mysql;
 
 return [
 
@@ -60,8 +59,8 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => [
-                PDO::ATTR_PERSISTENT => false,
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                \PDO::ATTR_PERSISTENT => false,
+                \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
             ],
         ],
 
