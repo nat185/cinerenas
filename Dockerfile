@@ -38,7 +38,7 @@ RUN composer install --no-dev --optimize-autoloader
 # Instalar dependencias de Node y compilar React (Vite)
 RUN npm install && npm run build
 
-# Configurar permisos de almacenamiento y caché de Laravel
+# Configurar permisos iniciales de almacenamiento y caché de Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
@@ -47,10 +47,12 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -s 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -s 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-# Crear un script de inicio para limpiar caché, ejecutar migraciones y arrancar Apache
+# Crear un script de inicio robusto para permisos, caché, migraciones y Apache
 RUN echo '#!/bin/bash' > /usr/local/bin/docker-entrypoint.sh \
+    && echo 'chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache' >> /usr/local/bin/docker-entrypoint.sh \
+    && echo 'chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache' >> /usr/local/bin/docker-entrypoint.sh \
     && echo 'php artisan config:clear' >> /usr/local/bin/docker-entrypoint.sh \
-    && echo 'php artisan config:cache' >> /usr/local/bin/docker-entrypoint.sh \
+    && echo 'php artisan cache:clear' >> /usr/local/bin/docker-entrypoint.sh \
     && echo 'php artisan route:clear' >> /usr/local/bin/docker-entrypoint.sh \
     && echo 'php artisan migrate --force' >> /usr/local/bin/docker-entrypoint.sh \
     && echo 'exec apache2-foreground' >> /usr/local/bin/docker-entrypoint.sh \
