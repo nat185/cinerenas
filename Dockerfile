@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Instalar dependencias del sistema y extensiones de PHP necesarias para Laravel
+# Instalar dependencias del sistema y herramientas
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -12,11 +12,16 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm
 
-# Habilitar mod_rewrite de Apache
-RUN a2enmod rewrite
-
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Instalar el instalador oficial de extensiones de PHP (garantiza pdo_mysql)
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod +x /usr/local/bin/install-php-extensions && \
+    install-php-extensions pdo_mysql mysqli mbstring exif pcntl bcmath gd
+
+# Habilitar mod_rewrite de Apache
+RUN a2enmod rewrite
 
 # Configurar directorio de trabajo
 WORKDIR /var/www/html
