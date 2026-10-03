@@ -1,41 +1,38 @@
-import React from 'react';
-import { Link } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
 
 export default function MiPlantillaLayout({ children }) {
-    return (
-        <div id="page-top">
-            {/* Navigation (Tu Navbar de Bootstrap/Grayscale) */}
-            <nav className="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
-                <div className="container px-4 px-lg-5">
-                    <Link className="navbar-brand" href="/">
-                        Mi Proyecto
-                    </Link>
-                    <div className="collapse navbar-collapse" id="navbarResponsive">
-                        <ul className="navbar-nav ms-auto">
-                            <li className="nav-item">
-                                <Link className="nav-link" href={route('login')}>
-                                    Iniciar Sesión
-                                </Link>
-                            </li>
-                            <li className="nav-item">
-                                <Link className="nav-link" href={route('register')}>
-                                    Registrarse
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </nav>
+    const [showScrollTop, setShowScrollTop] = useState(false);
 
-            {/* Contenido dinámico de cada página */}
+    useEffect(() => {
+        const handleScroll = () => {
+            setShowScrollTop(window.scrollY > 300);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    return (
+        <div id="page-top" style={{ position: 'relative' }}>
+            {/* Se elimina completamente el elemento nav superior */}
+            
             <main>{children}</main>
 
-            {/* Footer */}
-            <footer className="footer bg-black small text-center text-white-50">
+
+
+            {/* Footer sencillo */}
+            <footer className="footer bg-black py-4 border-top border-secondary border-opacity-25 small text-center text-white-50">
                 <div className="container px-4 px-lg-5">
-                    Copyright &copy; Mi Proyecto {new Date().getFullYear()}
+                    <div className="mb-1">Tu espacio cinematográfico</div>
+                    <div>Copyright &copy; {new Date().getFullYear()} — Todos los derechos reservados.</div>
                 </div>
             </footer>
         </div>
     );
+       
 }
+

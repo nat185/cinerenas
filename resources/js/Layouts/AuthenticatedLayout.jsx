@@ -1,76 +1,275 @@
-import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Link, Head, usePage, router } from '@inertiajs/react';
+
+const MENUS = {
+    admin: [
+        { label: 'Dashboard', icon: 'fa-tachometer-alt', route: 'admin.dashboard' },
+        { label: 'Películas y Reseñas', icon: 'fa-film', route: 'admin.peliculas' },
+        { label: 'Comentarios de Usuarios', icon: 'fa-comments', route: 'admin.comentarios' },
+        { label: 'Usuarios', icon: 'fa-users', route: 'admin.usuarios' },
+        { label: 'Estadísticas', icon: 'fa-chart-bar', route: 'admin.estadisticas' },
+        { label: 'Moderación', icon: 'fa-shield-alt', route: 'admin.moderacion' },
+        { label: 'Configuración', icon: 'fa-cog', route: 'admin.configuracion' },
+    ],
+    editor: [
+        { label: 'Dashboard', icon: 'fa-tachometer-alt', route: 'editor.dashboard' }
+    ],
+    usuario: [
+        { label: 'Inicio', icon: 'fa-home', route: 'user.inicio' }
+    ],
+};
 
 export default function AuthenticatedLayout({ auth, title, children }) {
-    const { post } = useForm();
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [scrolled, setScrolled] = useState(false);
+    const { url } = usePage();
 
-    const handleLogout = (e) => {
-        e.preventDefault();
-        post(route('logout'));
+    // ========================================================
+    // GESTIÓN DE TOKEN ÚNICO POR PESTAÑA (SESSIONSTORAGE)
+    // ========================================================
+    useEffect(() => {
+        let tabToken = sessionStorage.getItem('tab_token');
+        if (!tabToken) {
+            tabToken = Math.random().toString(36).substring(2);
+            sessionStorage.setItem('tab_token', tabToken);
+        }
+
+        // Interceptar peticiones de Inertia para enviar el token de la pestaña
+        const removeEventListener = router.on('before', (event) => {
+            event.detail.visit.headers['X-Tab-Token'] = tabToken;
+        });
+
+        return () => {
+            if (typeof removeEventListener === 'function') {
+                removeEventListener();
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 40);
+        onScroll();
+        window.addEventListener('scroll', onScroll);
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    // ========================================================
+    // CONTROL DE INACTIVIDAD DE 15 MINUTOS EN EL CLIENTE
+    // ========================================================
+    useEffect(() => {
+        let inactivityTimeout;
+
+        const logoutDueToInactivity = () => {
+            router.post(safeRoute('logout'), { reason: 'inactivity' });
+        };
+
+        const resetTimer = () => {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(logoutDueToInactivity, 15 * 60 * 1000);
+        };
+
+        const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll', 'click'];
+        events.forEach((event) => window.addEventListener(event, resetTimer));
+
+        resetTimer();
+
+        return () => {
+            clearTimeout(inactivityTimeout);
+            events.forEach((event) => window.removeEventListener(event, resetTimer));
+        };
+    }, []);
+
+    const role = auth?.user?.role || 'usuario';
+    const menu = MENUS[role] || [];
+
+    const safeRoute = (name) => {
+        try {
+            return route(name);
+        } catch (e) {
+            return '#';
+        }
     };
 
-    const userRole = auth?.user?.role ? auth.user.role.toUpperCase() : 'EDITOR';
+    const isActive = (name) => {
+        try {
+            const path = new URL(
+                route(name),
+                window.location.origin
+            ).pathname;
+
+            return url === path;
+        } catch (e) {
+            return false;
+        }
+    };
+
+    const headerTextColor = scrolled ? '#212529' : '#ffffff';
 
     return (
-        <div className="bg-black text-white" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-            {/* TÍTULO DINÁMICO PARA LA PESTAÑA DEL NAVEGADOR */}
-            <Head title={title ? `${title} - CineReseñas` : 'CineReseñas'} />
+        <div style={{ fontFamily: "'Lora', Georgia, serif" }}>
 
-            {/* Estilos dinámicos para que el texto y el botón cambien a oscuro cuando Grayscale active el scroll blanco */}
+            <Head title={title}>
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link
+                    href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap"
+                    rel="stylesheet"
+                />
+            </Head>
+
             <style>{`
-                #mainNav.navbar-shrink .dynamic-text {
-                    color: #212529 !important;
+                h1, h2, h3, h4, h5, h6, .font-heading {
+                    font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif !important;
+                    letter-spacing: 0.5px;
                 }
-                #mainNav.navbar-shrink .btn-outline-dynamic {
-                    color: #212529 !important;
-                    border-color: #212529 !important;
-                }
-                #mainNav.navbar-shrink .btn-outline-dynamic:hover {
-                    color: #fff !important;
-                    background-color: #212529 !important;
-                    border-color: #212529 !important;
+
+                body, p, span, li, div {
+                    font-family: 'Lora', Georgia, serif;
                 }
             `}</style>
 
-            {/* Navbar original con la animación de Grayscale */}
-            <nav className="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
-                <div className="container px-4 px-lg-5 d-flex justify-content-between align-items-center w-100">
-                    
-                    {/* Logotipo */}
-                    <Link className="navbar-brand text-uppercase fw-bold font-monospace" href="/">
+            {/* ===== HEADER ===== */}
+            <nav
+                className={scrolled ? 'shadow-sm' : ''}
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '64px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0 1.25rem',
+                    backgroundColor: scrolled ? '#ffffff' : 'transparent',
+                    transition: 'background-color 0.3s ease',
+                    zIndex: 1050,
+                }}
+            >
+                <div className="d-flex align-items-center gap-3">
+                    <button
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        aria-label="Alternar menú"
+                        style={{
+                            width: '38px',
+                            height: '32px',
+                            border: `1px solid ${headerTextColor}`,
+                            backgroundColor: 'transparent',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                        }}
+                    >
+                        <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: headerTextColor, transition: 'background-color 0.3s ease' }}></span>
+                        <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: headerTextColor, transition: 'background-color 0.3s ease' }}></span>
+                        <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: headerTextColor, transition: 'background-color 0.3s ease' }}></span>
+                    </button>
+
+                    <span
+                        className="font-heading fw-bold text-uppercase"
+                        style={{
+                            color: headerTextColor,
+                            transition: 'color 0.3s ease',
+                            fontSize: '1rem'
+                        }}
+                    >
                         CineReseñas
-                    </Link>
+                    </span>
+                </div>
 
-                    {/* Información del usuario y botón de cerrar sesión */}
-                    <div className="d-flex align-items-center gap-3">
-                        <span className="small d-none d-md-inline dynamic-text text-white" style={{ opacity: 0.9 }}>
-                            Hola, <strong className="dynamic-text text-white">{auth?.user?.name || 'Editor de Reseñas'}</strong> 
-                            <span className="badge bg-secondary ms-2 text-uppercase" style={{ fontSize: '0.7rem' }}>{userRole}</span>
+                <div className="d-flex align-items-center gap-3">
+                    <div className="text-end" style={{ lineHeight: 1.3 }}>
+                        <div
+                            style={{
+                                color: headerTextColor,
+                                transition: 'color 0.3s ease',
+                                fontWeight: 600,
+                                fontSize: '0.9rem'
+                            }}
+                        >
+                            {auth?.user?.name}
+                        </div>
+                        <span
+                            className="badge bg-primary text-uppercase"
+                            style={{ fontSize: '0.6rem', letterSpacing: '0.5px' }}
+                        >
+                            {role}
                         </span>
-
-                        <form onSubmit={handleLogout} className="m-0">
-                            <button 
-                                type="submit" 
-                                className="btn btn-sm btn-outline-light btn-outline-dynamic text-uppercase px-3 py-1 font-monospace"
-                                style={{ fontSize: '0.75rem', letterSpacing: '1px' }}
-                            >
-                                Cerrar Sesión
-                            </button>
-                        </form>
                     </div>
 
+                    {/* ===== BOTÓN CERRAR SESIÓN ===== */}
+                    <button
+                        type="button"
+                        onClick={() => router.post(safeRoute('logout'))}
+                        title="Cerrar sesión"
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: '6px',
+                            color: headerTextColor,
+                            transition: 'color 0.3s ease',
+                            fontSize: '1.1rem',
+                            lineHeight: 1,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <i className="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
             </nav>
 
-            {/* Contenido Principal */}
-            <main className="flex-grow-1 d-flex flex-column">
+            {/* ===== SIDEBAR ===== */}
+            <aside
+                className="bg-black"
+                style={{
+                    position: 'fixed',
+                    top: '64px',
+                    bottom: 0,
+                    left: 0,
+                    width: '250px',
+                    transform: sidebarOpen ? 'translateX(0)' : 'translateX(-250px)',
+                    transition: 'transform 0.25s ease',
+                    zIndex: 1040,
+                    overflowY: 'auto',
+                }}
+            >
+                <ul className="list-unstyled d-flex flex-column gap-1 p-3 mb-0">
+                    {menu.map((item) => (
+                        <li key={item.route}>
+                            <Link
+                                href={safeRoute(item.route)}
+                                className={`text-decoration-none d-flex align-items-center gap-3 p-2 rounded ${
+                                    isActive(item.route)
+                                        ? 'text-white bg-primary bg-opacity-25 border-start border-primary border-3'
+                                        : 'text-white-50'
+                                }`}
+                            >
+                                <i
+                                    className={`fas ${item.icon} ${
+                                        isActive(item.route) ? 'text-primary' : ''
+                                    }`}
+                                    style={{ width: '18px' }}
+                                ></i>
+                                {item.label}
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            </aside>
+
+            {/* ===== CONTENIDO ===== */}
+            <main
+                style={{
+                    marginLeft: sidebarOpen ? '250px' : '0',
+                    transition: 'margin-left 0.25s ease'
+                }}
+            >
                 {children}
             </main>
-
-            {/* Footer */}
-            <footer className="footer bg-black small text-center text-white-50 py-4 border-top border-secondary">
-                <div className="container px-4 px-lg-5">Copyright &copy; CineReseñas 2026</div>
-            </footer>
         </div>
     );
 }
+

@@ -33,6 +33,17 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // ========================================================
+        // NUEVO: Guardar el ID de la sesión actual de Laravel en la BD
+        // Esto invalida cualquier otra pestaña o dispositivo abierto previamente
+        // ========================================================
+        $user->active_session_id = session()->getId();
+        $user->save();
+        // ========================================================
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
@@ -47,6 +58,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }
+
