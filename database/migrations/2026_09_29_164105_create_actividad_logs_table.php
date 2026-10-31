@@ -11,7 +11,7 @@ return new class extends Migration
             $table->id();
             $table->string('tipo', 30); // registro, resena, comentario, valoracion, moderacion
             $table->string('descripcion', 255); // "Juan registró una cuenta"
-            $table->foreignId('causante_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('causante_id')->nullable()->constrained('usuarios')->nullOnDelete();
             $table->timestamp('created_at')->useCurrent(); // no necesita updated_at
         });
     }

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('valoraciones', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('usuario_id')->constrained('usuarios')->cascadeOnDelete();
             $table->foreignId('pelicula_id')->constrained('peliculas')->cascadeOnDelete();
             $table->unsignedTinyInteger('puntuacion'); // 1 a 5
             $table->timestamps();

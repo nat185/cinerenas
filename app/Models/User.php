@@ -2,57 +2,93 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+/**
+ * @property int $id
+ * @property string $nombre
+ * @property string $correo
+ * @property string $contrasena
+ * @property string $rol
+ * @property string $estado
+ * @property string|null $active_session_id
+ */
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Campos que se pueden asignar masivamente.
-     */
+    protected $table = 'usuarios';
+
+    // La tabla usa 'creado' y 'actualizado' en lugar de created_at / updated_at
+    const CREATED_AT = 'creado';
+    const UPDATED_AT = 'actualizado';
+
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'role',
+        'nombre',
+        'correo',
+        'contrasena',
+        'rol',
         'estado',
+        'active_session_id',
     ];
 
-    /**
-     * Campos ocultos al serializar (respuestas JSON / Inertia).
-     */
     protected $hidden = [
-        'password',
+        'contrasena',
         'remember_token',
     ];
 
-    /**
-     * Casts de atributos.
-     */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'correo_verificado_en' => 'datetime',
+            'contrasena' => 'hashed',
         ];
     }
 
-    /**
-     * Helpers prácticos para verificar roles.
-     */
+    // Laravel busca por este campo en Auth::attempt()
+    public function username()
+    {
+        return 'correo';
+    }
+
+    public function getAuthPassword()
+    {
+        return $this->contrasena;
+    }
+
+    // Laravel 11/12 lo usa para el rehash automático de la contraseña
+    public function getAuthPasswordName()
+    {
+        return 'contrasena';
+    }
+
+    public function getEmailForPasswordReset()
+    {
+        return $this->correo;
+    }
+
+    public function hasVerifiedEmail()
+    {
+        return ! is_null($this->correo_verificado_en);
+    }
+
+    public function markEmailAsVerified()
+    {
+        return $this->forceFill([
+            'correo_verificado_en' => $this->freshTimestamp(),
+        ])->save();
+    }
+
     public function esAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->rol === 'administrador';
     }
 
     public function esEditor(): bool
     {
-        return $this->role === 'editor';
+        return $this->rol === 'editor';
     }
 
     public function estaActivo(): bool
@@ -60,38 +96,37 @@ class User extends Authenticatable
         return $this->estado === 'activo';
     }
 
-    /**
-     * Relaciones de Eloquent
-     */
-
-    // Películas en las que figura como editor asignado
     public function peliculasEditadas()
     {
         return $this->hasMany(Pelicula::class, 'editor_id');
     }
 
-    // Reseñas redactadas por el usuario
     public function resenas()
     {
         return $this->hasMany(Resena::class, 'editor_id');
     }
 
-    // Comentarios publicados por el usuario
     public function comentarios()
     {
         return $this->hasMany(Comentario::class, 'usuario_id');
     }
 
-    // Favoritos agregados por el usuario
     public function favoritos()
     {
         return $this->hasMany(Favorito::class, 'usuario_id');
     }
 
-    // Reportes emitidos por el usuario
+    public function valoraciones()
+    {
+        return $this->hasMany(Valoracion::class, 'usuario_id');
+    }
+    public function resenasGuardadas()
+    {
+        return $this->hasMany(ResenaGuardada::class, 'usuario_id');
+    }
+
     public function reportesRealizados()
     {
         return $this->hasMany(ReporteModeracion::class, 'reportado_por_id');
     }
 }
-

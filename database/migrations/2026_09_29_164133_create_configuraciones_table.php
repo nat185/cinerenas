@@ -1,43 +1,30 @@
 <?php
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-
-class Configuracion extends Model
+return new class extends Migration
 {
-    use HasFactory;
-
-    // Nombre exacto de la tabla en la base de datos
-    protected $table = 'configuraciones';
-
-    // Campos permitidos para asignación masiva
-    protected $fillable = [
-        'clave',
-        'valor',
-    ];
-
     /**
-     * Método de conveniencia para obtener un valor por su clave.
-     * Ejemplo de uso: Configuracion::get('nombre_plataforma', 'Mi Sitio');
+     * Run the migrations.
      */
-    public static function get(string $clave, $default = null)
+    public function up(): void
     {
-        $config = static::where('clave', $clave)->first();
-        return $config ? $config->valor : $default;
+        Schema::create('configuraciones', function (Blueprint $table) {
+            $table->id();
+            $table->string('clave')->unique();
+            $table->text('valor')->nullable();
+            $table->timestamps();
+        });
     }
 
     /**
-     * Método de conveniencia para establecer o actualizar una configuración.
-     * Ejemplo de uso: Configuracion::set('nombre_plataforma', 'Nuevo Nombre');
+     * Reverse the migrations.
      */
-    public static function set(string $clave, $valor): static
+    public function down(): void
     {
-        return static::updateOrCreate(
-            ['clave' => $clave],
-            ['valor' => $valor]
-        );
+        Schema::dropIfExists('configuraciones');
     }
-}
+};
 

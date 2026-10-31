@@ -20,16 +20,14 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
         }
     }, [flash]);
 
-    // Formulario de Perfil (Actualización de datos y contraseña con verificación actual)
     const perfilForm = useForm({
-        name: auth?.user?.name || '',
-        email: auth?.user?.email || '',
+        nombre: auth?.user?.nombre || '',
+        correo: auth?.user?.correo || '',
         current_password: '',
         password: '',
         password_confirmation: '',
     });
 
-    // Formulario de Sistema y Bienvenida (Accesible para administradores y editores)
     const sistemaForm = useForm({
         nombre_sistema: configuraciones?.nombre_sistema || 'CineReseñas',
         descripcion_welcome: configuraciones?.descripcion_welcome || 'Plataforma interactiva para la exploración, calificación y debate de películas y producciones cinematográficas de la comunidad.',
@@ -39,7 +37,9 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
         e.preventDefault();
         perfilForm.put(route('admin.perfil.update', auth.user.id), {
             preserveScroll: true,
-            onSuccess: () => perfilForm.reset('current_password', 'password', 'password_confirmation'),
+            onSuccess: () => {
+                perfilForm.reset('current_password', 'password', 'password_confirmation');
+            },
         });
     };
 
@@ -75,7 +75,6 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                 }
             `}</style>
 
-            {/* NOTIFICACIÓN FLOTANTE */}
             {mostrarFlash && (flash?.message || flash?.error) && (
                 <div 
                     className={`alert ${flash?.error ? 'alert-danger' : 'alert-success'} shadow py-2 px-3 mb-0 d-flex align-items-center`}
@@ -87,7 +86,6 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                 </div>
             )}
 
-            {/* HERO REDUCIDO */}
             <section
                 style={{
                     position: 'relative',
@@ -126,12 +124,10 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                 </div>
             </section>
 
-            {/* SECCIÓN PRINCIPAL */}
             <section className="py-4" style={{ backgroundColor: '#f8f9fa', minHeight: 'calc(100vh - 200px)' }}>
                 <div className="container-fluid px-4 px-lg-5">
                     <div className="row gx-4 gy-4">
 
-                        {/* TARJETA 1: PERFIL */}
                         <div className="col-lg-6">
                             <div className="card border-0 shadow-sm p-4 h-100 bg-white" style={{ borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                                 <h6 className="font-heading text-uppercase text-secondary mb-3" style={{ fontSize: '0.85rem', fontWeight: '700', letterSpacing: '0.05em' }}>
@@ -143,22 +139,24 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                         <input 
                                             type="text" 
                                             className="form-control bg-white text-dark border shadow-sm" 
-                                            value={perfilForm.data.name} 
-                                            onChange={(e) => perfilForm.setData('name', e.target.value)}
+                                            value={perfilForm.data.nombre} 
+                                            onChange={(e) => perfilForm.setData('nombre', e.target.value)}
+                                            autoComplete="name"
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
-                                        {perfilForm.errors.name && <div className="text-danger small mt-1">{perfilForm.errors.name}</div>}
+                                        {perfilForm.errors.nombre && <div className="text-danger small mt-1">{perfilForm.errors.nombre}</div>}
                                     </div>
                                     <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                                         <label className="form-label text-dark fw-semibold">Correo electrónico</label>
                                         <input 
                                             type="email" 
                                             className="form-control bg-white text-dark border shadow-sm" 
-                                            value={perfilForm.data.email} 
-                                            onChange={(e) => perfilForm.setData('email', e.target.value)}
+                                            value={perfilForm.data.correo} 
+                                            onChange={(e) => perfilForm.setData('correo', e.target.value)}
+                                            autoComplete="email"
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
-                                        {perfilForm.errors.email && <div className="text-danger small mt-1">{perfilForm.errors.email}</div>}
+                                        {perfilForm.errors.correo && <div className="text-danger small mt-1">{perfilForm.errors.correo}</div>}
                                     </div>
                                     <hr className="my-3 text-muted" />
                                     <div className="mb-2" style={{ fontSize: '0.85rem' }}>
@@ -172,6 +170,7 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                             placeholder="Ingresa tu contraseña actual" 
                                             value={perfilForm.data.current_password}
                                             onChange={(e) => perfilForm.setData('current_password', e.target.value)}
+                                            autoComplete="current-password"
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
                                         {perfilForm.errors.current_password && <div className="text-danger small mt-1">{perfilForm.errors.current_password}</div>}
@@ -181,9 +180,10 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                         <input 
                                             type="password" 
                                             className="form-control bg-white text-dark border shadow-sm" 
-                                            placeholder="Mínimo 8 caracteres" 
+                                            placeholder="Mínimo 8 caracteres (déjalo vacío si no deseas cambiarla)" 
                                             value={perfilForm.data.password}
                                             onChange={(e) => perfilForm.setData('password', e.target.value)}
+                                            autoComplete="new-password"
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
                                         {perfilForm.errors.password && <div className="text-danger small mt-1">{perfilForm.errors.password}</div>}
@@ -196,17 +196,17 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                             placeholder="Repite la nueva contraseña" 
                                             value={perfilForm.data.password_confirmation}
                                             onChange={(e) => perfilForm.setData('password_confirmation', e.target.value)}
+                                            autoComplete="new-password"
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
                                     </div>
                                     <button type="submit" className="btn-custom-blue" disabled={perfilForm.processing}>
-                                        <i className="fas fa-save me-1"></i> Guardar cambios de perfil
+                                        <i className="fas fa-save me-1"></i> {perfilForm.processing ? 'Guardando...' : 'Guardar cambios de perfil'}
                                     </button>
                                 </form>
                             </div>
                         </div>
 
-                        {/* TARJETA 2: SISTEMA Y BIENVENIDA */}
                         <div className="col-lg-6">
                             <div className="card border-0 shadow-sm p-4 h-100 bg-white" style={{ borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                                 <h6 className="font-heading text-uppercase text-secondary mb-3" style={{ fontSize: '0.85rem', fontWeight: '700', letterSpacing: '0.05em' }}>
@@ -222,6 +222,7 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                             onChange={(e) => sistemaForm.setData('nombre_sistema', e.target.value)}
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
+                                        {sistemaForm.errors.nombre_sistema && <div className="text-danger small mt-1">{sistemaForm.errors.nombre_sistema}</div>}
                                     </div>
                                     <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                                         <label className="form-label text-dark fw-semibold">Descripción del sistema (Vista Welcome)</label>
@@ -232,6 +233,7 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                             onChange={(e) => sistemaForm.setData('descripcion_welcome', e.target.value)}
                                             style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         ></textarea>
+                                        {sistemaForm.errors.descripcion_welcome && <div className="text-danger small mt-1">{sistemaForm.errors.descripcion_welcome}</div>}
                                     </div>
                                     <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                                         <label className="form-label text-dark fw-semibold">Géneros disponibles (Lectura desde Base de Datos)</label>
@@ -245,7 +247,7 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                         <small className="text-muted" style={{ fontSize: '0.75rem' }}>* Los géneros se gestionan desde el módulo de Películas y Reseñas.</small>
                                     </div>
                                     <button type="submit" className="btn-custom-blue mt-2" disabled={sistemaForm.processing}>
-                                        <i className="fas fa-save me-1"></i> Guardar configuración general
+                                        <i className="fas fa-save me-1"></i> {sistemaForm.processing ? 'Guardando...' : 'Guardar configuración general'}
                                     </button>
                                 </form>
                             </div>

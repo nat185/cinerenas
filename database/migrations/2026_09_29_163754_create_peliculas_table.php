@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,8 +12,11 @@ return new class extends Migration
             $table->id();
             $table->string('titulo', 150);
             $table->foreignId('genero_id')->constrained('generos')->restrictOnDelete();
-            $table->foreignId('editor_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->unsignedSmallInteger('anio')->nullable(); // año de estreno
+            
+            // Actualizado de 'users' a 'usuarios'
+            $table->foreignId('editor_id')->nullable()->constrained('usuarios')->nullOnDelete();
+            
+            $table->unsignedSmallInteger('anio')->nullable(); // Guardado como 'anio' sin ñ por seguridad técnica
             $table->string('director', 120)->nullable();
             $table->text('elenco')->nullable(); // actores principales
             $table->unsignedSmallInteger('duracion_min')->nullable();
@@ -36,3 +40,4 @@ return new class extends Migration
         Schema::dropIfExists('peliculas');
     }
 };
+

@@ -138,7 +138,7 @@ export default function AdminDashboard({
                                 marginBottom: '24px'
                             }}
                         >
-                            Bienvenido de nuevo, {auth?.user?.name}.
+                            Bienvenido de nuevo, {auth?.user?.nombre}.
                             Aquí puedes consultar el estado general de
                             CineReseñas y supervisar su actividad.
                         </p>
@@ -654,4 +654,3 @@ export default function AdminDashboard({
         </AuthenticatedLayout>
     );
 }
-

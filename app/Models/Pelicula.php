@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use App\Models\ValoracionPelicula;
+
+
 
 class Pelicula extends Model
 {
@@ -88,6 +91,12 @@ class Pelicula extends Model
         return $this->hasMany(Resena::class, 'pelicula_id');
     }
 
+    public function valoracionesPelicula()
+    {
+        return $this->hasMany(ValoracionPelicula::class, 'pelicula_id');
+    }
+
+
     /**
      * Relación: Una película tiene muchas Valoraciones (Opcional según tu BD).
      */
@@ -96,4 +105,3 @@ class Pelicula extends Model
         return $this->hasMany(Valoracion::class, 'pelicula_id');
     }
 }
-

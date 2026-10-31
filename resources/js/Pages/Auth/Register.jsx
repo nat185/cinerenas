@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -6,17 +6,21 @@ import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
-        name: '',
-        email: '',
-        password: '',
-        password_confirmation: '',
+        nombre: '',
+        correo: '',
+        contrasena: '',
+        contrasena_confirmation: '',
     });
+
+    // Estados para alternar la visibilidad de las contraseñas
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
     const submit = (e) => {
         e.preventDefault();
 
         post(route('register'), {
-            onFinish: () => reset('password', 'password_confirmation'),
+            onFinish: () => reset('contrasena', 'contrasena_confirmation'),
         });
     };
 
@@ -29,18 +33,10 @@ export default function Register() {
                 <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet" />
             </Head>
 
-            {/* Navigation (Siempre transparente) */}
-            <nav 
-                className="navbar navbar-expand-lg fixed-top bg-transparent navbar-dark py-3" 
-                id="mainNav"
-                style={{ transition: 'all 0.3s ease-in-out' }}
-            >
+            {/* Navigation */}
+            <nav className="navbar navbar-expand-lg fixed-top bg-transparent navbar-dark py-3" id="mainNav" style={{ transition: 'all 0.3s ease-in-out' }}>
                 <div className="container px-4 px-lg-5">
-                    <Link 
-                        className="navbar-brand text-uppercase fw-bold text-white" 
-                        style={{ letterSpacing: '2px', transition: 'color 0.3s ease-in-out' }} 
-                        href="/"
-                    >
+                    <Link className="navbar-brand text-uppercase fw-bold text-white" style={{ letterSpacing: '2px' }} href="/">
                         CineReseñas
                     </Link>
                 </div>
@@ -52,162 +48,135 @@ export default function Register() {
                     <div className="d-flex justify-content-center w-100">
                         <div className="text-center w-100" style={{ maxWidth: '580px' }}>
                             
-                            {/* TÍTULO REGISTRARSE */}
-                            <div 
-                                role="heading"
-                                aria-level={1}
-                                className="mx-auto mt-4 mt-md-2 mb-1 text-center" 
-                                style={{ 
-                                    fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)', 
-                                    fontFamily: "'Pacifico', cursive",
-                                    color: '#ffffff',
-                                    WebkitTextFillColor: '#ffffff',
-                                    background: 'none',
-                                    WebkitBackgroundClip: 'initial',
-                                    opacity: 1,
-                                    lineHeight: '1.3',
-                                    padding: '5px 10px',
-                                    overflow: 'visible',
-                                    whiteSpace: 'normal',
-                                    wordBreak: 'break-word',
-                                    textShadow: '0 4px 15px rgba(0, 0, 0, 0.95)'
-                                }}
-                            >
+                            <div role="heading" aria-level={1} className="mx-auto mt-4 mt-md-2 mb-1 text-center" style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)', fontFamily: "'Pacifico', cursive", color: '#ffffff', textShadow: '0 4px 15px rgba(0, 0, 0, 0.95)' }}>
                                 Registrarse
                             </div>
 
-                            <p 
-                                className="text-white-50 mx-auto mb-3 small fw-light" 
-                                style={{ letterSpacing: '1px', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
-                            >
+                            <p className="text-white-50 mx-auto mb-3 small fw-light" style={{ letterSpacing: '1px' }}>
                                 Crea una cuenta para comenzar a calificar películas
                             </p>
 
-                            {/* Tarjeta Glassmorphism */}
-                            <div 
-                                className="card text-white p-4 rounded-4 shadow-lg mx-auto" 
-                                style={{ 
-                                    backdropFilter: 'blur(12px)', 
-                                    backgroundColor: 'rgba(15, 15, 15, 0.8)', 
-                                    border: '1px solid rgba(255, 255, 255, 0.15)' 
-                                }}
-                            >
+                            <div className="card text-white p-4 rounded-4 shadow-lg mx-auto" style={{ backdropFilter: 'blur(12px)', backgroundColor: 'rgba(15, 15, 15, 0.8)', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
                                 <form onSubmit={submit} className="text-start">
+                                    
+                                    {/* CAMPO NOMBRE */}
                                     <div className="mb-3">
                                         <InputLabel 
-                                            htmlFor="name" 
+                                            htmlFor="nombre" 
                                             value="NOMBRE COMPLETO" 
                                             className="text-white-50 small mb-1 text-uppercase fw-semibold" 
                                             style={{ letterSpacing: '1px' }} 
                                         />
-
                                         <TextInput
-                                            id="name"
+                                            id="nombre"
                                             type="text"
-                                            name="name"
-                                            value={data.name}
+                                            name="nombre"
+                                            value={data.nombre}
                                             className="mt-1 block w-full form-control bg-dark text-white"
-                                            style={{ 
-                                                borderColor: '#64a19d', 
-                                                boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' 
-                                            }}
+                                            style={{ borderColor: '#64a19d', boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' }}
                                             autoComplete="name"
                                             isFocused={true}
-                                            onChange={(e) => setData('name', e.target.value)}
+                                            onChange={(e) => setData('nombre', e.target.value)}
                                             required
                                         />
-
-                                        <InputError message={errors.name} className="mt-1 text-danger small" />
+                                        <InputError message={errors.nombre} className="mt-1 text-danger small" />
                                     </div>
 
+                                    {/* CAMPO CORREO */}
                                     <div className="mb-3">
                                         <InputLabel 
-                                            htmlFor="email" 
+                                            htmlFor="correo" 
                                             value="CORREO ELECTRÓNICO" 
                                             className="text-white-50 small mb-1 text-uppercase fw-semibold" 
                                             style={{ letterSpacing: '1px' }} 
                                         />
-
                                         <TextInput
-                                            id="email"
+                                            id="correo"
                                             type="email"
-                                            name="email"
-                                            value={data.email}
+                                            name="correo"
+                                            value={data.correo}
                                             className="mt-1 block w-full form-control bg-dark text-white"
-                                            style={{ 
-                                                borderColor: '#64a19d', 
-                                                boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' 
-                                            }}
+                                            style={{ borderColor: '#64a19d', boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' }}
                                             autoComplete="username"
-                                            onChange={(e) => setData('email', e.target.value)}
+                                            onChange={(e) => setData('correo', e.target.value)}
                                             required
                                         />
-
-                                        <InputError message={errors.email} className="mt-1 text-danger small" />
+                                        <InputError message={errors.correo} className="mt-1 text-danger small" />
                                     </div>
 
+                                    {/* CAMPO CONTRASEÑA CON BOTÓN DE VISIBILIDAD */}
                                     <div className="mb-3">
                                         <InputLabel 
-                                            htmlFor="password" 
+                                            htmlFor="contrasena" 
                                             value="CONTRASEÑA" 
                                             className="text-white-50 small mb-1 text-uppercase fw-semibold" 
                                             style={{ letterSpacing: '1px' }} 
                                         />
-
-                                        <TextInput
-                                            id="password"
-                                            type="password"
-                                            name="password"
-                                            value={data.password}
-                                            className="mt-1 block w-full form-control bg-dark text-white"
-                                            style={{ 
-                                                borderColor: '#64a19d', 
-                                                boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' 
-                                            }}
-                                            autoComplete="new-password"
-                                            onChange={(e) => setData('password', e.target.value)}
-                                            required
-                                        />
-
-                                        <InputError message={errors.password} className="mt-1 text-danger small" />
+                                        <div className="position-relative">
+                                            <TextInput
+                                                id="contrasena"
+                                                type={showPassword ? 'text' : 'password'}
+                                                name="contrasena"
+                                                value={data.contrasena}
+                                                className="mt-1 block w-full form-control bg-dark text-white pe-5"
+                                                style={{ borderColor: '#64a19d', boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' }}
+                                                autoComplete="new-password"
+                                                onChange={(e) => setData('contrasena', e.target.value)}
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="btn position-absolute top-50 end-0 translate-middle-y border-0 text-white-50 p-0 me-2"
+                                                style={{ fontSize: '0.75rem', background: 'transparent' }}
+                                                tabIndex={-1}
+                                            >
+                                                {showPassword ? 'Ocultar' : 'Ver'}
+                                            </button>
+                                        </div>
+                                        <InputError message={errors.contrasena} className="mt-1 text-danger small" />
                                     </div>
 
+                                    {/* CAMPO CONFIRMAR CONTRASEÑA CON BOTÓN DE VISIBILIDAD */}
                                     <div className="mb-3">
                                         <InputLabel 
-                                            htmlFor="password_confirmation" 
+                                            htmlFor="contrasena_confirmation" 
                                             value="CONFIRMAR CONTRASEÑA" 
                                             className="text-white-50 small mb-1 text-uppercase fw-semibold" 
                                             style={{ letterSpacing: '1px' }} 
                                         />
-
-                                        <TextInput
-                                            id="password_confirmation"
-                                            type="password"
-                                            name="password_confirmation"
-                                            value={data.password_confirmation}
-                                            className="mt-1 block w-full form-control bg-dark text-white"
-                                            style={{ 
-                                                borderColor: '#64a19d', 
-                                                boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' 
-                                            }}
-                                            autoComplete="new-password"
-                                            onChange={(e) => setData('password_confirmation', e.target.value)}
-                                            required
-                                        />
-
-                                        <InputError message={errors.password_confirmation} className="mt-1 text-danger small" />
+                                        <div className="position-relative">
+                                            <TextInput
+                                                id="contrasena_confirmation"
+                                                type={showPasswordConfirmation ? 'text' : 'password'}
+                                                name="contrasena_confirmation"
+                                                value={data.contrasena_confirmation}
+                                                className="mt-1 block w-full form-control bg-dark text-white pe-5"
+                                                style={{ borderColor: '#64a19d', boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)' }}
+                                                autoComplete="new-password"
+                                                onChange={(e) => setData('contrasena_confirmation', e.target.value)}
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                                                className="btn position-absolute top-50 end-0 translate-middle-y border-0 text-white-50 p-0 me-2"
+                                                style={{ fontSize: '0.75rem', background: 'transparent' }}
+                                                tabIndex={-1}
+                                            >
+                                                {showPasswordConfirmation ? 'Ocultar' : 'Ver'}
+                                            </button>
+                                        </div>
+                                        <InputError message={errors.contrasena_confirmation} className="mt-1 text-danger small" />
                                     </div>
 
+                                    {/* BOTÓN DE CREAR CUENTA */}
                                     <div className="d-grid gap-2 mt-4">
                                         <button 
                                             type="submit" 
                                             className="btn text-uppercase w-100 justify-content-center py-2 fw-bold text-white border-0" 
                                             disabled={processing} 
-                                            style={{ 
-                                                backgroundColor: '#64a19d', 
-                                                letterSpacing: '1.5px',
-                                                boxShadow: '0 4px 10px rgba(100, 161, 157, 0.4)' 
-                                            }}
+                                            style={{ backgroundColor: '#64a19d', letterSpacing: '1.5px', boxShadow: '0 4px 10px rgba(100, 161, 157, 0.4)' }}
                                         >
                                             CREAR CUENTA
                                         </button>
@@ -226,7 +195,7 @@ export default function Register() {
                 </div>
             </header>
 
-            {/* Footer con Copyright */}
+            {/* Footer */}
             <footer className="footer bg-transparent small text-center text-white-50 pb-4 pt-3">
                 <div className="container px-3 px-lg-5" style={{ fontSize: '0.85rem', letterSpacing: '0.5px' }}>
                     Copyright &copy; CineReseñas 2026
@@ -235,4 +204,3 @@ export default function Register() {
         </div>
     );
 }
-

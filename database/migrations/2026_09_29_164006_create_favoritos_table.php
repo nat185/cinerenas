@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('favoritos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('usuario_id')->constrained('usuarios')->cascadeOnDelete();
             $table->foreignId('pelicula_id')->constrained('peliculas')->cascadeOnDelete();
             $table->timestamps();
             $table->unique(['usuario_id', 'pelicula_id']);

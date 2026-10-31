@@ -9,7 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +21,9 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'status' => session('status'),
+        ]);
     }
 
     /**
@@ -31,22 +33,34 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // 1. Validamos usando los nombres en español acordes a tu base de datos ('correo', 'contrasena')
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'nombre'     => ['required', 'string', 'max:255'],
+            'correo'     => ['required', 'string', 'email', 'max:255', 'unique:usuarios,correo'], 
+            'contrasena' => ['required', 'min:6', 'confirmed'],
         ]);
 
+        // 2. Generamos el identificador de sesión para la pestaña (igual que en tu LoginController)
+        $tabId = $request->header('X-Tab-Session') ?? Str::random(40);
+
+        // 3. Creamos el usuario asignando explícitamente las columnas en español de tu base de datos
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'nombre'            => $request->nombre,
+            'correo'            => $request->correo,
+            'contrasena'        => Hash::make($request->contrasena),
+            'rol'               => 'usuario', // O el rol por defecto que manejes
+            'estado'            => 'activo',
+            'active_session_id' => $tabId,
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
+        // 4. Iniciamos sesión y regeneramos el token de seguridad
+        Auth::login($user, false);
+        $request->session()->regenerate();
+        session(['last_activity_time' => time()]);
 
-        return redirect(route('dashboard', absolute: false));
+        // 5. Redirección coherente con tu sistema
+        return redirect()->route('user.inicio');
     }
 }

@@ -6,8 +6,8 @@ import { Head, Link, useForm, router } from '@inertiajs/react';
 
 export default function Login({ status, canResetPassword, session_conflict, conflict_email }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: conflict_email || '',
-        password: '',
+        correo: conflict_email || '',
+        contrasena: '',
         force_login: false,
     });
 
@@ -40,11 +40,11 @@ export default function Login({ status, canResetPassword, session_conflict, conf
     const forceLoginSubmit = (e) => {
         e.preventDefault();
         router.post(route('login'), {
-            email: data.email,
-            password: data.password,
+            correo: data.correo,
+            contrasena: data.contrasena,
             force_login: true,
         }, {
-            onError: () => reset('password'),
+            onError: () => reset('contrasena'),
         });
     };
 
@@ -149,7 +149,7 @@ export default function Login({ status, canResetPassword, session_conflict, conf
                                             id="email"
                                             type="email"
                                             name="email"
-                                            value={data.email}
+                                            value={data.correo}
                                             className="mt-1 block w-full form-control bg-dark text-white py-2"
                                             style={{
                                                 borderColor: '#64a19d',
@@ -158,9 +158,9 @@ export default function Login({ status, canResetPassword, session_conflict, conf
                                             }}
                                             autoComplete="username"
                                             isFocused={true}
-                                            onChange={(e) => setData('email', e.target.value)}
+                                            onChange={(e) => setData('correo', e.target.value)}
                                         />
-                                        <InputError message={errors.email} className="mt-1 text-danger small" />
+                                        <InputError message={errors.correo} className="mt-1 text-danger small" />
                                     </div>
 
                                     <div className="mb-3">
@@ -174,7 +174,7 @@ export default function Login({ status, canResetPassword, session_conflict, conf
                                             id="password"
                                             type="password"
                                             name="password"
-                                            value={data.password}
+                                            value={data.contrasena}
                                             className="mt-1 block w-full form-control bg-dark text-white py-2"
                                             style={{
                                                 borderColor: '#64a19d',
@@ -182,9 +182,9 @@ export default function Login({ status, canResetPassword, session_conflict, conf
                                                 fontSize: '0.9rem'
                                             }}
                                             autoComplete="current-password"
-                                            onChange={(e) => setData('password', e.target.value)}
+                                            onChange={(e) => setData('contrasena', e.target.value)}
                                         />
-                                        <InputError message={errors.password} className="mt-1 text-danger small" />
+                                        <InputError message={errors.contrasena} className="mt-1 text-danger small" />
                                     </div>
 
                                     {session_conflict ? (

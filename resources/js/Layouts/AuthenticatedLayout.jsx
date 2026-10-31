@@ -12,10 +12,20 @@ const MENUS = {
         { label: 'Configuración', icon: 'fa-cog', route: 'admin.configuracion' },
     ],
     editor: [
-        { label: 'Dashboard', icon: 'fa-tachometer-alt', route: 'editor.dashboard' }
+        { label: 'Dashboard', icon: 'fa-tachometer-alt', route: 'editor.dashboard' },
+        { label: 'Películas', icon: 'fa-film', route: 'editor.peliculas' },
+        { label: 'Reseñas', icon: 'fa-pen-nib', route: 'editor.resenas' },
+        { label: 'Comentarios', icon: 'fa-comments', route: 'editor.comentarios' },
+        { label: 'Estadísticas', icon: 'fa-chart-bar', route: 'editor.estadisticas' },
+        { label: 'Perfil', icon: 'fa-user', route: 'editor.perfil' },
     ],
     usuario: [
-        { label: 'Inicio', icon: 'fa-home', route: 'user.inicio' }
+        { label: 'Inicio', route: 'user.inicio', icon: 'fa-home' },
+        { label: 'Películas', route: 'user.catalogo', icon: 'fa-film' },
+        { label: 'Reseñas', route: 'user.resenas', icon: 'fa-pen-nib' },
+        { label: 'Mis Favoritos', route: 'user.favoritos', icon: 'fa-heart' },
+        { label: 'Películas Vistas', route: 'user.vistas', icon: 'fa-eye' },
+        { label: 'Mi Perfil', route: 'user.perfil', icon: 'fa-user' },
     ],
 };
 
@@ -34,7 +44,6 @@ export default function AuthenticatedLayout({ auth, title, children }) {
             sessionStorage.setItem('tab_token', tabToken);
         }
 
-        // Interceptar peticiones de Inertia para enviar el token de la pestaña
         const removeEventListener = router.on('before', (event) => {
             event.detail.visit.headers['X-Tab-Token'] = tabToken;
         });
@@ -79,8 +88,10 @@ export default function AuthenticatedLayout({ auth, title, children }) {
         };
     }, []);
 
-    const role = auth?.user?.role || 'usuario';
-    const menu = MENUS[role] || [];
+    const rawRole = auth?.user?.role || auth?.user?.rol || 'usuario';
+    const normalizedRole = rawRole.toLowerCase();
+    const menuKey = normalizedRole === 'administrador' ? 'admin' : normalizedRole;
+    const menu = MENUS[menuKey] || MENUS['usuario'];
 
     const safeRoute = (name) => {
         try {
@@ -190,13 +201,13 @@ export default function AuthenticatedLayout({ auth, title, children }) {
                                 fontSize: '0.9rem'
                             }}
                         >
-                            {auth?.user?.name}
+                            {auth?.user?.nombre}
                         </div>
                         <span
                             className="badge bg-primary text-uppercase"
                             style={{ fontSize: '0.6rem', letterSpacing: '0.5px' }}
                         >
-                            {role}
+                            {menuKey}
                         </span>
                     </div>
 
@@ -251,9 +262,11 @@ export default function AuthenticatedLayout({ auth, title, children }) {
                                     className={`fas ${item.icon} ${
                                         isActive(item.route) ? 'text-primary' : ''
                                     }`}
-                                    style={{ width: '18px' }}
+                                    style={{ width: '18px', textAlign: 'center' }}
                                 ></i>
-                                {item.label}
+                                <span style={{ color: isActive(item.route) ? '#ffffff' : 'inherit' }}>
+                                    {item.label}
+                                </span>
                             </Link>
                         </li>
                     ))}
@@ -272,4 +285,3 @@ export default function AuthenticatedLayout({ auth, title, children }) {
         </div>
     );
 }
-

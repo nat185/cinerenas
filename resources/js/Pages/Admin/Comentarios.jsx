@@ -11,16 +11,17 @@ export default function Comentarios({ auth, comentarios = [] }) {
     const [valorSelectFiltro, setValorSelectFiltro] = useState('');
     const [fechaFiltro, setFechaFiltro] = useState('');
 
-    const [vistaActiva, setVistaActiva] = useState('tabla');
+    const [vistaActiva, setVistaActiva] = useState('tabla'); // 'tabla', 'detalle', 'reportar'
     const [comentarioSeleccionado, setComentarioSeleccionado] = useState(null);
 
-    const formReporte = useForm({
+    const [mostrarFlash, setMostrarFlash] = useState(false);
+
+    // Formulario para reportar comentarios
+    const { data: dataReporte, setData: setDataReporte, post: postReporte, processing: processingReporte, reset: resetReporte, errors: errorsReporte } = useForm({
         comentario_id: '',
         tipo_reporte: 'Contenido ofensivo',
         motivo: '',
     });
-
-    const [mostrarFlash, setMostrarFlash] = useState(false);
 
     useEffect(() => {
         if (flash?.message || flash?.error) {
@@ -44,21 +45,14 @@ export default function Comentarios({ auth, comentarios = [] }) {
         }
     };
 
-    const esComentarioVisible = (c) => {
-        const estado = (c.estado || 'visible').toLowerCase();
-        return estado !== 'oculto';
-    };
-
     const handleToggleEstado = (comentario) => {
-        const visible = esComentarioVisible(comentario);
-        const accion = visible ? 'ocultar este comentario' : 'restaurar este comentario';
-
-        if (confirm(`¿Deseas ${accion}?`)) {
-            router.delete(route('admin.comentarios.destroy', comentario.id), {
-                preserveScroll: true,
-                preserveState: true,
-            });
-        }
+        router.delete(route('admin.comentarios.destroy', comentario.id), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                router.reload({ only: ['comentarios'] });
+            }
+        });
     };
 
     const handleVerDetalle = (comentario) => {
@@ -68,7 +62,7 @@ export default function Comentarios({ auth, comentarios = [] }) {
 
     const handleAbrirReporte = (comentario) => {
         setComentarioSeleccionado(comentario);
-        formReporte.setData({
+        setDataReporte({
             comentario_id: comentario.id,
             tipo_reporte: 'Contenido ofensivo',
             motivo: '',
@@ -78,11 +72,12 @@ export default function Comentarios({ auth, comentarios = [] }) {
 
     const handleEnviarReporte = (e) => {
         e.preventDefault();
-        formReporte.post(route('admin.moderacion.store'), {
+        postReporte(route('admin.moderacion.store'), {
+            preserveScroll: true,
             onSuccess: () => {
-                formReporte.reset();
                 setVistaActiva('tabla');
-            },
+                resetReporte();
+            }
         });
     };
 
@@ -99,13 +94,13 @@ export default function Comentarios({ auth, comentarios = [] }) {
         setFechaFiltro('');
     };
 
-    // ID del usuario que realizó el comentario
-    const getIdUsuario = (c) => String(c.usuario_id || c.user_id || c.usuario?.id || '');
-    const getUsuario = (c) => c.usuario?.name || c.user_name || 'Usuario Anónimo';
-    const getPelicula = (c) => c.pelicula?.titulo || c.pelicula_titulo || 'General';
-    const getContenido = (c) => c.texto || c.contenido || c.comentario || 'Sin contenido';
-    const getEstado = (c) => c.estado || 'visible';
-    
+    const getIdComentario = (c) => String(c.id || '');
+    const getUsuarioNombre = (c) => c.usuario?.nombre || c.usuario_nombre || 'Usuario Anónimo';
+    const getUsuarioCorreo = (c) => c.usuario?.correo || 'Sin correo';
+    const getPeliculaTitulo = (c) => c.pelicula?.titulo || c.pelicula_titulo || 'Película general';
+    const getContenido = (c) => c.texto || c.contenido || 'Sin contenido';
+    const getEstado = (c) => (c.estado || 'visible').toLowerCase();
+
     const getFecha = (c) => {
         if (!c.created_at) return 'N/A';
         const partes = c.created_at.split('T')[0].split(' ')[0].split('-');
@@ -119,16 +114,17 @@ export default function Comentarios({ auth, comentarios = [] }) {
     };
 
     const comentariosFiltrados = listaComentarios.filter((c) => {
-        const idUsr = getIdUsuario(c);
-        const usuario = getUsuario(c);
-        const pelicula = getPelicula(c);
+        const idCom = getIdComentario(c);
+        const usuarioNombre = getUsuarioNombre(c);
+        const usuarioCorreo = getUsuarioCorreo(c);
+        const peliculaTitulo = getPeliculaTitulo(c);
         const contenido = getContenido(c);
         const estado = getEstado(c);
         const fecha = getFecha(c);
 
         if (columnaFiltro === 'estado') {
             if (!valorSelectFiltro) return true;
-            return estado.toLowerCase() === valorSelectFiltro.toLowerCase();
+            return estado === valorSelectFiltro.toLowerCase();
         }
 
         if (columnaFiltro === 'fecha') {
@@ -143,18 +139,19 @@ export default function Comentarios({ auth, comentarios = [] }) {
 
         switch (columnaFiltro) {
             case 'id':
-                return idUsr.includes(val);
+                return idCom.includes(val);
             case 'usuario':
-                return usuario.toLowerCase().includes(val);
+                return usuarioNombre.toLowerCase().includes(val) || usuarioCorreo.toLowerCase().includes(val);
             case 'pelicula':
-                return pelicula.toLowerCase().includes(val);
+                return peliculaTitulo.toLowerCase().includes(val);
             case 'contenido':
                 return contenido.toLowerCase().includes(val);
             default:
                 return (
-                    idUsr.includes(val) ||
-                    usuario.toLowerCase().includes(val) ||
-                    pelicula.toLowerCase().includes(val) ||
+                    idCom.includes(val) ||
+                    usuarioNombre.toLowerCase().includes(val) ||
+                    usuarioCorreo.toLowerCase().includes(val) ||
+                    peliculaTitulo.toLowerCase().includes(val) ||
                     contenido.toLowerCase().includes(val) ||
                     estado.toLowerCase().includes(val) ||
                     fecha.toLowerCase().includes(val)
@@ -163,10 +160,11 @@ export default function Comentarios({ auth, comentarios = [] }) {
     });
 
     return (
-        <AuthenticatedLayout auth={auth} title="Moderación de Comentarios">
+        <AuthenticatedLayout auth={auth} title="Gestión de Comentarios">
 
+            {/* NOTIFICACIÓN FLOTANTE */}
             {mostrarFlash && (flash?.message || flash?.error) && (
-                <div 
+                <div
                     className={`alert ${flash?.error ? 'alert-danger' : 'alert-success'} shadow py-2 px-3 mb-0 d-flex align-items-center`}
                     style={{
                         position: 'fixed',
@@ -180,15 +178,16 @@ export default function Comentarios({ auth, comentarios = [] }) {
                 >
                     <i className={`fas ${flash?.error ? 'fa-exclamation-circle' : 'fa-check-circle'} me-2`}></i>
                     <div className="flex-grow-1">{flash?.message || flash?.error}</div>
-                    <button 
-                        type="button" 
-                        className="btn-close ms-2" 
-                        style={{ fontSize: '0.6rem' }} 
+                    <button
+                        type="button"
+                        className="btn-close ms-2"
+                        style={{ fontSize: '0.6rem' }}
                         onClick={() => setMostrarFlash(false)}
                     ></button>
                 </div>
             )}
 
+            {/* HERO PRINCIPAL */}
             <section
                 style={{
                     position: 'relative',
@@ -219,26 +218,28 @@ export default function Comentarios({ auth, comentarios = [] }) {
                         className="font-heading text-white mb-1"
                         style={{ fontSize: 'clamp(1.5rem, 2.2vw, 2rem)', fontWeight: '600', letterSpacing: '-0.02em' }}
                     >
-                        Moderación de Comentarios
+                        Gestión de Comentarios
                     </h1>
                     <p className="text-light mb-0" style={{ fontSize: '0.9rem', opacity: 0.85, maxWidth: '800px' }}>
-                        Apartado para revisar, moderar, ocultar, reportar o restaurar las opiniones emitidas por los usuarios.
+                        Apartado para revisar, filtrar, moderar y ocultar comentarios realizados por los usuarios en las películas.
                     </p>
                 </div>
             </section>
 
+            {/* SECCIÓN PRINCIPAL */}
             <section className="py-4" style={{ backgroundColor: '#f8f9fa', minHeight: 'calc(100vh - 200px)' }}>
                 <div className="container-fluid px-4 px-lg-5">
 
+                    {/* VISTA DETALLE */}
                     {vistaActiva === 'detalle' && comentarioSeleccionado && (
                         <div className="card border-0 shadow-sm bg-white p-4 mb-3" style={{ borderRadius: '2px', borderLeft: '4px solid #6c757d' }}>
                             <div className="d-flex justify-content-between align-items-center mb-3">
                                 <h4 className="mb-0 text-dark" style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-                                    <i className="fas fa-eye me-2 text-secondary"></i>Detalle del Comentario #{comentarioSeleccionado.id}
+                                    <i className="fas fa-comment-dots me-2 text-secondary"></i>Detalle del Comentario #{comentarioSeleccionado.id}
                                 </h4>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-outline-secondary btn-sm" 
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
                                     onClick={() => setVistaActiva('tabla')}
                                     style={{ fontSize: '0.8rem', borderRadius: '2px' }}
                                 >
@@ -246,82 +247,102 @@ export default function Comentarios({ auth, comentarios = [] }) {
                                 </button>
                             </div>
                             <div className="row g-3">
-                                <div className="col-md-4">
-                                    <p className="mb-1 text-dark"><strong>ID Usuario:</strong> #{getIdUsuario(comentarioSeleccionado)}</p>
-                                    <p className="mb-1 text-dark"><strong>Usuario:</strong> {getUsuario(comentarioSeleccionado)}</p>
-                                    <p className="mb-1 text-dark"><strong>Película:</strong> {getPelicula(comentarioSeleccionado)}</p>
-                                    <p className="mb-1 text-dark"><strong>Calificación:</strong> ★ {comentarioSeleccionado.calificacion ?? 'N/A'}</p>
-                                    <p className="mb-1 text-dark"><strong>Fecha:</strong> {getFecha(comentarioSeleccionado)}</p>
-                                    <p className="mb-1 text-dark"><strong>Estado:</strong> <span className="badge bg-success">{getEstado(comentarioSeleccionado)}</span></p>
+                                <div className="col-md-6">
+                                    <p className="mb-1 text-dark"><strong>ID Comentario:</strong> #{comentarioSeleccionado.id}</p>
+                                    <p className="mb-1 text-dark"><strong>Usuario:</strong> {getUsuarioNombre(comentarioSeleccionado)} ({getUsuarioCorreo(comentarioSeleccionado)})</p>
+                                    <p className="mb-1 text-dark"><strong>Película asociada:</strong> {getPeliculaTitulo(comentarioSeleccionado)}</p>
                                 </div>
-                                <div className="col-md-8">
-                                    <label className="form-label text-muted fw-semibold" style={{ fontSize: '0.8rem' }}>Contenido íntegro:</label>
-                                    <div className="p-3 bg-light border rounded text-dark" style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
-                                        "{getContenido(comentarioSeleccionado)}"
+                                <div className="col-md-6">
+                                    <p className="mb-1 text-dark"><strong>Fecha de publicación:</strong> {getFecha(comentarioSeleccionado)}</p>
+                                    <p className="mb-1 text-dark"><strong>Estado:</strong> <span className={`badge ${getEstado(comentarioSeleccionado) === 'visible' ? 'bg-success' : 'bg-danger'}`}>{getEstado(comentarioSeleccionado)}</span></p>
+                                </div>
+                                <div className="col-12 mt-2">
+                                    <div className="p-3 bg-light rounded border">
+                                        <strong className="text-muted d-block mb-1" style={{ fontSize: '0.8rem' }}>Contenido del comentario:</strong>
+                                        <p className="mb-0 text-dark" style={{ fontSize: '0.9rem' }}>{getContenido(comentarioSeleccionado)}</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
+                    {/* VISTA REPORTAR */}
                     {vistaActiva === 'reportar' && comentarioSeleccionado && (
                         <div className="card border-0 shadow-sm bg-white p-4 mb-3" style={{ borderRadius: '2px', borderLeft: '4px solid #dc3545' }}>
                             <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h4 className="mb-0 text-danger" style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-                                    <i className="fas fa-flag me-2"></i>Reportar Comentario #{comentarioSeleccionado.id}
+                                <h4 className="mb-0 text-dark" style={{ fontSize: '1.1rem', fontWeight: '600' }}>
+                                    <i className="fas fa-flag me-2 text-danger"></i>Reportar Comentario #{comentarioSeleccionado.id}
                                 </h4>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-outline-secondary btn-sm" 
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
                                     onClick={() => setVistaActiva('tabla')}
                                     style={{ fontSize: '0.8rem', borderRadius: '2px' }}
                                 >
                                     <i className="fas fa-arrow-left me-1"></i> Regresar a la tabla
                                 </button>
                             </div>
+
+                            <div className="p-3 bg-light rounded border mb-3">
+                                <span className="text-muted small d-block mb-1">Comentario a reportar:</span>
+                                <p className="mb-0 text-dark fst-italic">"{getContenido(comentarioSeleccionado)}"</p>
+                                <span className="text-muted small d-block mt-2">Autor: {getUsuarioNombre(comentarioSeleccionado)}</span>
+                            </div>
+
                             <form onSubmit={handleEnviarReporte}>
-                                <div className="row g-3">
-                                    <div className="col-md-6">
-                                        <label className="form-label text-muted" style={{ fontSize: '0.8rem' }}>Tipo de Reporte / Motivo Principal</label>
-                                        <select
-                                            className="form-select form-select-sm"
-                                            value={formReporte.data.tipo_reporte}
-                                            onChange={(e) => formReporte.setData('tipo_reporte', e.target.value)}
-                                            required
-                                        >
-                                            <option value="Contenido ofensivo">Contenido ofensivo o groserías</option>
-                                            <option value="Spam">Spam o publicidad no deseada</option>
-                                            <option value="Información falsa">Información falsa o spoilers malintencionados</option>
-                                            <option value="Lenguaje inapropiado">Lenguaje inapropiado / Hincapié al odio</option>
-                                            <option value="Otro">Otro motivo</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-md-12">
-                                        <label className="form-label text-muted" style={{ fontSize: '0.8rem' }}>Descripción detallada del reporte</label>
-                                        <textarea
-                                            className="form-control form-control-sm"
-                                            rows="3"
-                                            placeholder="Explica brevemente por qué se reporta este comentario..."
-                                            value={formReporte.data.motivo}
-                                            onChange={(e) => formReporte.setData('motivo', e.target.value)}
-                                            required
-                                        ></textarea>
-                                    </div>
-                                    <div className="col-md-12 d-flex justify-content-end">
-                                        <button
-                                            type="submit"
-                                            className="btn btn-danger btn-sm px-4"
-                                            style={{ borderRadius: '2px' }}
-                                            disabled={formReporte.processing}
-                                        >
-                                            {formReporte.processing ? 'Enviando reporte...' : 'Enviar Reporte de Moderación'}
-                                        </button>
-                                    </div>
+                                <div className="mb-3">
+                                    <label className="form-label text-dark fw-semibold" style={{ fontSize: '0.85rem' }}>Tipo de Reporte / Motivo:</label>
+                                    <select
+                                        className="form-select form-select-sm"
+                                        value={dataReporte.tipo_reporte}
+                                        onChange={(e) => setDataReporte('tipo_reporte', e.target.value)}
+                                        required
+                                    >
+                                        <option value="Contenido ofensivo">Contenido ofensivo</option>
+                                        <option value="Spam">Spam</option>
+                                        <option value="Lenguaje inapropiado">Lenguaje inapropiado</option>
+                                        <option value="Spoilers">Spoilers</option>
+                                        <option value="Otro motivo">Otro motivo</option>
+                                    </select>
+                                    {errorsReporte.tipo_reporte && <div className="text-danger small mt-1">{errorsReporte.tipo_reporte}</div>}
+                                </div>
+
+                                <div className="mb-3">
+                                    <label className="form-label text-dark fw-semibold" style={{ fontSize: '0.85rem' }}>Notas adicionales / Explicación del reporte:</label>
+                                    <textarea
+                                        className="form-control form-control-sm"
+                                        rows="3"
+                                        placeholder="Escribe los detalles o por qué se reporta este comentario..."
+                                        value={dataReporte.motivo}
+                                        onChange={(e) => setDataReporte('motivo', e.target.value)}
+                                        required
+                                    ></textarea>
+                                    {errorsReporte.motivo && <div className="text-danger small mt-1">{errorsReporte.motivo}</div>}
+                                </div>
+
+                                <div className="d-flex justify-content-end gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => setVistaActiva('tabla')}
+                                        style={{ fontSize: '0.8rem', borderRadius: '2px' }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-danger btn-sm"
+                                        disabled={processingReporte}
+                                        style={{ fontSize: '0.8rem', borderRadius: '2px' }}
+                                    >
+                                        <i className="fas fa-paper-plane me-1"></i> Enviar Reporte a Moderación
+                                    </button>
                                 </div>
                             </form>
                         </div>
                     )}
 
+                    {/* FILTROS Y CONTROLES */}
                     <div className="d-flex flex-wrap gap-2 mb-3 align-items-center justify-content-between">
                         <div className="d-flex flex-wrap gap-2 align-items-center flex-grow-1">
                             <select
@@ -331,7 +352,7 @@ export default function Comentarios({ auth, comentarios = [] }) {
                                 onChange={handleCambioColumna}
                             >
                                 <option value="todos">Filtrar por...</option>
-                                <option value="id">ID Usuario</option>
+                                <option value="id">ID</option>
                                 <option value="usuario">Usuario</option>
                                 <option value="pelicula">Película</option>
                                 <option value="contenido">Contenido</option>
@@ -371,7 +392,7 @@ export default function Comentarios({ auth, comentarios = [] }) {
                                     <input
                                         type="text"
                                         className="form-control bg-white text-dark border"
-                                        placeholder={columnaFiltro === 'todos' ? 'Buscar comentarios...' : `Buscar por ID de usuario...`}
+                                        placeholder={columnaFiltro === 'todos' ? 'Buscar comentarios...' : `Buscar por ${columnaFiltro}...`}
                                         value={busqueda}
                                         onChange={(e) => setBusqueda(e.target.value)}
                                         style={{ fontSize: '0.8rem' }}
@@ -408,6 +429,7 @@ export default function Comentarios({ auth, comentarios = [] }) {
                         </div>
                     </div>
 
+                    {/* TABLA DE COMENTARIOS */}
                     <div className="card border-0 shadow-sm bg-white" style={{ borderRadius: '2px' }}>
                         <div
                             ref={tableContainerRef}
@@ -417,10 +439,10 @@ export default function Comentarios({ auth, comentarios = [] }) {
                             <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
                                 <thead className="table-light sticky-top" style={{ zIndex: 5 }}>
                                     <tr>
-                                        <th style={{ width: '90px' }}>ID Usuario</th>
+                                        <th style={{ width: '70px' }}>ID</th>
                                         <th>Usuario</th>
                                         <th>Película</th>
-                                        <th>Comentario / Contenido</th>
+                                        <th>Comentario</th>
                                         <th>Fecha</th>
                                         <th className="text-center">Estado</th>
                                         <th className="text-center" style={{ width: '150px' }}>Acciones</th>
@@ -429,53 +451,63 @@ export default function Comentarios({ auth, comentarios = [] }) {
                                 <tbody>
                                     {comentariosFiltrados.length > 0 ? (
                                         comentariosFiltrados.map((comentario) => {
-                                            const visible = esComentarioVisible(comentario);
+                                            const esVisible = getEstado(comentario) === 'visible';
 
                                             return (
-                                                <tr key={comentario.id} style={{ opacity: visible ? 1 : 0.55, backgroundColor: visible ? 'transparent' : '#f8f9fa' }}>
-                                                    <td className="fw-bold text-muted">#{getIdUsuario(comentario)}</td>
-                                                    <td className="fw-semibold text-dark">{getUsuario(comentario)}</td>
+                                                <tr
+                                                    key={comentario.id}
+                                                    style={{
+                                                        opacity: esVisible ? 1 : 0.55,
+                                                        backgroundColor: esVisible ? 'transparent' : '#f8f9fa'
+                                                    }}
+                                                >
+                                                    <td className="fw-bold text-muted">#{comentario.id}</td>
                                                     <td>
-                                                        <span className="badge bg-secondary font-monospace" style={{ fontSize: '0.75rem' }}>
-                                                            {getPelicula(comentario)}
-                                                        </span>
+                                                        <div className="fw-semibold text-dark">{getUsuarioNombre(comentario)}</div>
+                                                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>{getUsuarioCorreo(comentario)}</div>
                                                     </td>
-                                                    <td className="text-muted text-wrap" style={{ maxWidth: '300px' }}>
-                                                        "{getContenido(comentario)}"
+                                                    <td className="fw-semibold text-secondary">{getPeliculaTitulo(comentario)}</td>
+                                                    <td className="text-dark" style={{ maxWidth: '280px' }}>
+                                                        <div className="text-truncate" title={getContenido(comentario)}>
+                                                            {getContenido(comentario)}
+                                                        </div>
                                                     </td>
                                                     <td>{getFecha(comentario)}</td>
                                                     <td className="text-center">
-                                                        <span className={`badge ${visible ? 'bg-success' : 'bg-secondary'}`}>
+                                                        <span className={`badge ${esVisible ? 'bg-success' : 'bg-danger'}`}>
                                                             {getEstado(comentario)}
                                                         </span>
                                                     </td>
                                                     <td className="text-center">
                                                         <div className="btn-group btn-group-sm" role="group">
+                                                            {/* Ver Detalle */}
                                                             <button
                                                                 className="btn btn-outline-secondary"
                                                                 onClick={() => handleVerDetalle(comentario)}
-                                                                title="Ver contenido completo"
-                                                                style={{ padding: '2px 6px', borderRadius: '2px 0 0 2px' }}
+                                                                title="Ver detalle"
+                                                                style={{ padding: '2px 5px', borderRadius: '2px 0 0 2px' }}
                                                             >
                                                                 <i className="fas fa-eye"></i>
                                                             </button>
 
+                                                            {/* Reportar */}
                                                             <button
                                                                 className="btn btn-outline-warning text-dark"
                                                                 onClick={() => handleAbrirReporte(comentario)}
                                                                 title="Reportar comentario"
-                                                                style={{ padding: '2px 6px' }}
+                                                                style={{ padding: '2px 5px' }}
                                                             >
                                                                 <i className="fas fa-flag"></i>
                                                             </button>
 
+                                                            {/* Deshabilitar / Ocultar o Restaurar */}
                                                             <button
-                                                                className={`btn ${visible ? 'btn-outline-danger' : 'btn-success'}`}
+                                                                className={`btn ${esVisible ? 'btn-outline-danger' : 'btn-success'}`}
                                                                 onClick={() => handleToggleEstado(comentario)}
-                                                                title={visible ? 'Ocultar comentario' : 'Restaurar comentario'}
-                                                                style={{ padding: '2px 6px', borderRadius: '0 2px 2px 0' }}
+                                                                title={esVisible ? 'Deshabilitar / Ocultar' : 'Restaurar'}
+                                                                style={{ padding: '2px 5px', borderRadius: '0 2px 2px 0' }}
                                                             >
-                                                                <i className={`fas ${visible ? 'fa-trash-alt' : 'fa-undo'}`}></i>
+                                                                <i className={`fas ${esVisible ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                                                             </button>
                                                         </div>
                                                     </td>

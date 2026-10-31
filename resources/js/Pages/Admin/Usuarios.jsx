@@ -19,11 +19,11 @@ export default function Usuarios({ auth, usuarios = [] }) {
         email: '',
         password: '',
         password_confirmation: '',
-        role: 'user',
+        rol: 'usuario',
     });
 
     const formEditar = useForm({
-        role: 'user',
+        rol: 'usuario',
     });
 
     const [mostrarFlash, setMostrarFlash] = useState(false);
@@ -83,7 +83,7 @@ export default function Usuarios({ auth, usuarios = [] }) {
     const handleAbrirEditar = (usuario) => {
         setUsuarioSeleccionado(usuario);
         formEditar.setData({
-            role: usuario.role || usuario.tipo || 'user',
+            rol: usuario.rol || usuario.tipo || 'usuario',
         });
         setVistaActiva('editar');
     };
@@ -103,9 +103,14 @@ export default function Usuarios({ auth, usuarios = [] }) {
         if (!usuarioSeleccionado) return;
         
         formEditar.put(route('admin.usuarios.update', usuarioSeleccionado.id), {
+            preserveScroll: true,
             onSuccess: () => {
                 setVistaActiva('tabla');
+                formEditar.reset();
             },
+            onError: () => {
+                formEditar.clearErrors();
+            }
         });
     };
 
@@ -123,14 +128,15 @@ export default function Usuarios({ auth, usuarios = [] }) {
     };
 
     const getIdUsuario = (u) => String(u.id || '');
-    const getNombre = (u) => u.name || 'Sin nombre';
-    const getEmail = (u) => u.email || 'Sin correo';
-    const getRol = (u) => u.role || u.tipo || 'user';
+    const getNombre = (u) => u.nombre || 'Sin nombre';
+    const getEmail = (u) => u.correo || 'Sin correo';
+    const getRol = (u) => u.rol || u.tipo || 'usuario';
     const getEstado = (u) => u.estado || 'activo';
     
     const getFecha = (u) => {
-        if (!u.created_at) return 'N/A';
-        const partes = u.created_at.split('T')[0].split(' ')[0].split('-');
+        const fechaCruda = u.creado || u.created_at;
+        if (!fechaCruda) return 'N/A';
+        const partes = String(fechaCruda).split('T')[0].split(' ')[0].split('-');
         if (partes.length === 3) {
             const anio = partes[0];
             const mes = parseInt(partes[1], 10);
@@ -192,7 +198,7 @@ export default function Usuarios({ auth, usuarios = [] }) {
 
             {/* NOTIFICACIÓN FLOTANTE */}
             {mostrarFlash && (flash?.message || flash?.error) && (
-                <div 
+                <div
                     className={`alert ${flash?.error ? 'alert-danger' : 'alert-success'} shadow py-2 px-3 mb-0 d-flex align-items-center`}
                     style={{
                         position: 'fixed',
@@ -206,10 +212,10 @@ export default function Usuarios({ auth, usuarios = [] }) {
                 >
                     <i className={`fas ${flash?.error ? 'fa-exclamation-circle' : 'fa-check-circle'} me-2`}></i>
                     <div className="flex-grow-1">{flash?.message || flash?.error}</div>
-                    <button 
-                        type="button" 
-                        className="btn-close ms-2" 
-                        style={{ fontSize: '0.6rem' }} 
+                    <button
+                        type="button"
+                        className="btn-close ms-2"
+                        style={{ fontSize: '0.6rem' }}
                         onClick={() => setMostrarFlash(false)}
                     ></button>
                 </div>
@@ -265,9 +271,9 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                 <h4 className="mb-0 text-dark" style={{ fontSize: '1.1rem', fontWeight: '600' }}>
                                     <i className="fas fa-user me-2 text-secondary"></i>Detalle del Usuario #{usuarioSeleccionado.id}
                                 </h4>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-outline-secondary btn-sm" 
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
                                     onClick={() => setVistaActiva('tabla')}
                                     style={{ fontSize: '0.8rem', borderRadius: '2px' }}
                                 >
@@ -296,9 +302,9 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                 <h4 className="mb-0 text-success" style={{ fontSize: '1.1rem', fontWeight: '600' }}>
                                     <i className="fas fa-user-plus me-2"></i>Registrar Nuevo Usuario
                                 </h4>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-outline-secondary btn-sm" 
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
                                     onClick={() => setVistaActiva('tabla')}
                                     style={{ fontSize: '0.8rem', borderRadius: '2px' }}
                                 >
@@ -331,13 +337,13 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                         <label className="form-label text-muted" style={{ fontSize: '0.8rem' }}>Rol / Tipo de Usuario</label>
                                         <select
                                             className="form-select form-select-sm"
-                                            value={formCrear.data.role}
-                                            onChange={(e) => formCrear.setData('role', e.target.value)}
+                                            value={formCrear.data.rol}
+                                            onChange={(e) => formCrear.setData('rol', e.target.value)}
                                             required
                                         >
-                                            <option value="user">user</option>
+                                            <option value="usuario">usuario</option>
                                             <option value="editor">editor</option>
-                                            <option value="admin">admin</option>
+                                            <option value="administrador">administrador</option>
                                         </select>
                                     </div>
                                     <div className="col-md-4">
@@ -382,9 +388,9 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                 <h4 className="mb-0 text-dark" style={{ fontSize: '1.1rem', fontWeight: '600' }}>
                                     <i className="fas fa-user-edit me-2 text-warning"></i>Modificar Rol de Usuario: {getNombre(usuarioSeleccionado)}
                                 </h4>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-outline-secondary btn-sm" 
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
                                     onClick={() => setVistaActiva('tabla')}
                                     style={{ fontSize: '0.8rem', borderRadius: '2px' }}
                                 >
@@ -401,13 +407,13 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                         <label className="form-label text-muted" style={{ fontSize: '0.8rem' }}>Seleccionar Nuevo Rol / Tipo</label>
                                         <select
                                             className="form-select form-select-sm"
-                                            value={formEditar.data.role}
-                                            onChange={(e) => formEditar.setData('role', e.target.value)}
+                                            value={formEditar.data.rol}
+                                            onChange={(e) => formEditar.setData('rol', e.target.value)}
                                             required
                                         >
-                                            <option value="user">user</option>
+                                            <option value="usuario">usuario</option>
                                             <option value="editor">editor</option>
-                                            <option value="admin">admin</option>
+                                            <option value="administrador">administrador</option>
                                         </select>
                                     </div>
                                     <div className="col-md-12 d-flex justify-content-end mt-4">
@@ -462,9 +468,9 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                     onChange={(e) => setValorSelectFiltro(e.target.value)}
                                 >
                                     <option value="">Todos los roles</option>
-                                    <option value="admin">admin</option>
+                                    <option value="administrador">administrador</option>
                                     <option value="editor">editor</option>
-                                    <option value="user">user</option>
+                                    <option value="usuario">usuario</option>
                                 </select>
                             ) : columnaFiltro === 'fecha' ? (
                                 <div className="input-group input-group-sm" style={{ maxWidth: '220px' }}>
@@ -561,11 +567,11 @@ export default function Usuarios({ auth, usuarios = [] }) {
                                             const activo = esUsuarioActivo(usuario);
 
                                             return (
-                                                <tr 
-                                                    key={usuario.id} 
-                                                    style={{ 
-                                                        opacity: activo ? 1 : 0.55, 
-                                                        backgroundColor: activo ? 'transparent' : '#f8f9fa' 
+                                                <tr
+                                                    key={usuario.id}
+                                                    style={{
+                                                        opacity: activo ? 1 : 0.55,
+                                                        backgroundColor: activo ? 'transparent' : '#f8f9fa'
                                                     }}
                                                 >
                                                     <td className="fw-bold text-muted">#{usuario.id}</td>
@@ -636,4 +642,3 @@ export default function Usuarios({ auth, usuarios = [] }) {
         </AuthenticatedLayout>
     );
 }
-

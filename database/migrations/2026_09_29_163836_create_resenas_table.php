@@ -10,7 +10,7 @@ return new class extends Migration
         Schema::create('resenas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pelicula_id')->constrained('peliculas')->cascadeOnDelete();
-            $table->foreignId('editor_id')->constrained('users')->restrictOnDelete();
+            $table->foreignId('editor_id')->constrained('usuarios')->restrictOnDelete();
             $table->string('titulo', 150);
             $table->text('contenido');
             $table->decimal('calificacion', 2, 1); // 0.0 a 5.0

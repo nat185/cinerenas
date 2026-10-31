@@ -23,19 +23,20 @@ class LoginController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'min:6', 'confirmed'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'correo' => ['required', 'string', 'email', 'max:255', 'unique:usuarios,correo'], // Apuntamos a la tabla 'usuarios', columna 'correo'
+            'contrasena' => ['required', 'min:6', 'confirmed'],
         ]);
 
         // Identificador de la pestaña que hizo el registro
         $tabId = $request->header('X-Tab-Session') ?? Str::random(40);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'usuario',
+            'nombre' => $request->nombre,      // Asumiendo que tu columna en BD es 'nombre'
+            'correo' => $request->correo,     // Se guarda en la columna 'correo'
+            'contrasena' => Hash::make($request->contrasena), // Se guarda en la columna 'contrasena'
+            'rol' => 'usuario',
+            'estado' => 'activo',            // Ajusta si requieres un valor por defecto
             'active_session_id' => $tabId,
         ]);
 
@@ -56,35 +57,55 @@ class LoginController extends Controller
 
     public function login(Request $request)
     {
+        // 1. Validamos que el email y password vengan en el request
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
+            'correo' => ['required', 'email'],
+            'contrasena' => ['required'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        // 2. Mapeamos las credenciales del formulario hacia las columnas reales de tu base de datos
+        $authCredentials = [
+            'correo' => $credentials['correo'],
+            'password' => $credentials['contrasena'], // Laravel internamente lee getAuthPassword() que ya apunta a 'contrasena'
+        ];
+
+        if (! Auth::attempt($authCredentials, $request->boolean('remember'))) {
             return back()->withErrors([
-                'email' => 'Las credenciales no coinciden con nuestros registros.',
+                'correo' => 'Las credenciales no coinciden con nuestros registros.',
             ]);
         }
-
-        $request->session()->regenerate();
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
+        // ========================================================
+        // VALIDACIÓN DE ESTADO INACTIVO
+        // ========================================================
+        if (strtolower($user->estado ?? 'activo') === 'inactivo') {
+            Auth::logout(); // Cerramos la sesión de inmediato
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'correo' => 'Tu cuenta se encuentra inactiva. Comunícate con el administrador.',
+            ]);
+        }
+        // ========================================================
+
+        $request->session()->regenerate();
+
         // La pestaña que acaba de iniciar sesión pasa a ser "la sesión válida" de este usuario.
-        // Cualquier otra pestaña/navegador/dispositivo con un X-Tab-Session distinto quedará invalidado.
         $tabId = $request->header('X-Tab-Session') ?? Str::random(40);
         $user->active_session_id = $tabId;
         $user->save();
 
         session(['last_activity_time' => time()]);
 
-        if ($user->role === 'admin') {
+        if ($user->rol === 'administrador' || $user->rol === 'admin') {
             return redirect()->route('admin.dashboard');
         }
 
-        if ($user->role === 'editor') {
+        if ($user->rol === 'editor') {
             return redirect()->route('editor.dashboard');
         }
 
@@ -113,3 +134,4 @@ class LoginController extends Controller
         return redirect()->route('login')->with('status', $mensaje);
     }
 }
+
