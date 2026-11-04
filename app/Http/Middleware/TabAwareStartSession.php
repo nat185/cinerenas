@@ -26,31 +26,14 @@ class TabAwareStartSession extends StartSession
         $tabId = $this->tabIdDe($request);
         $request->attributes->set('tab_id', $tabId);
 
-        // Carga completa de una página protegida sin saber de qué pestaña viene:
-        // se devuelve una mini página que guarda el id de la pestaña en una cookie de
-        // 30 segundos y recarga. Así F5 no cierra la sesión de ESA pestaña.
+        // Carga completa (F5) de una página protegida: el navegador no manda el id de la pestaña,
+        // así que se devuelve una mini página que lo lee de sessionStorage y vuelve a pedir la
+        // misma página con la cabecera X-Tab-Session. Así F5 no cierra la sesión de ESA pestaña.
         if (!$tabId && $this->esCargaCompletaProtegida($request)) {
             return $this->paginaDeArranque();
         }
 
         $response = parent::handle($request, $next);
-        $response->headers->set('X-Tab-Aware', $tabId ? 'tab' : 'none');
-
-        // DIAGNÓSTICO TEMPORAL (borrar cuando se resuelva): storage/logs/laravel.log
-        \Illuminate\Support\Facades\Log::info('tabdiag', [
-            'm' => $request->method(),
-            'p' => $request->path(),
-            'tab' => $tabId ? substr($tabId, 0, 8) : null,
-            'hdr' => $request->hasHeader('X-Tab-Session'),
-            'auth' => \Illuminate\Support\Facades\Auth::check(),
-            'status' => $response->getStatusCode(),
-            'loc' => $response->headers->get('Location'),
-        ]);
-
-        // La cookie de arranque es de un solo uso
-        if (isset($_COOKIE['tab_boot']) || $request->cookies->has('tab_boot')) {
-            $response->headers->clearCookie('tab_boot', '/');
-        }
 
         return $response;
     }
@@ -109,10 +92,7 @@ class TabAwareStartSession extends StartSession
 
     private function tabIdDe(Request $request): ?string
     {
-        // La cookie tab_boot se lee en crudo: el middleware EncryptCookies de Laravel descarta
-        // las cookies que no están cifradas, y esta la escribe el navegador (JavaScript).
-        $id = $request->header('X-Tab-Session')
-            ?: ($request->cookies->get('tab_boot') ?: ($_COOKIE['tab_boot'] ?? null));
+        $id = $request->header('X-Tab-Session');
 
         return (is_string($id) && preg_match('/^[A-Za-z0-9_-]{16,64}$/', $id)) ? $id : null;
     }
@@ -171,7 +151,6 @@ class TabAwareStartSession extends StartSession
 HTML;
 
         return response($html, 200, [
-            'X-Tab-Aware' => 'bootstrap',
             'Content-Type' => 'text/html; charset=UTF-8',
             'Cache-Control' => 'no-store',
         ]);
