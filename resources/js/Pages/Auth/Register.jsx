@@ -4,6 +4,37 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { Head, Link, useForm } from '@inertiajs/react';
 
+// Botón de ojo para ver / ocultar contraseña (solo el icono, sin contorno)
+function OjoContrasena({ visible, onToggle, color = '#64748b', hover = '#0f172a', size = 20, offsetTop = 0 }) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            tabIndex={-1}
+            className="position-absolute top-50 end-0 translate-middle-y me-2 d-flex align-items-center justify-content-center border-0 bg-transparent p-0"
+            style={{ width: '28px', height: '28px', marginTop: offsetTop, color, cursor: 'pointer', outline: 'none', boxShadow: 'none', transition: 'color 0.2s ease' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = hover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = color; }}
+            title={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+            aria-label={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+        >
+            {visible ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+            ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            )}
+        </button>
+    );
+}
+
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
         nombre: '',
@@ -124,15 +155,7 @@ export default function Register() {
                                                 onChange={(e) => setData('contrasena', e.target.value)}
                                                 required
                                             />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="btn position-absolute top-50 end-0 translate-middle-y border-0 text-white-50 p-0 me-2"
-                                                style={{ fontSize: '0.75rem', background: 'transparent' }}
-                                                tabIndex={-1}
-                                            >
-                                                {showPassword ? 'Ocultar' : 'Ver'}
-                                            </button>
+                                            <OjoContrasena visible={showPassword} onToggle={() => setShowPassword(!showPassword)} color="#64a19d" hover="#8fd0cb" offsetTop="0.25rem" />
                                         </div>
                                         <InputError message={errors.contrasena} className="mt-1 text-danger small" />
                                     </div>
@@ -157,15 +180,7 @@ export default function Register() {
                                                 onChange={(e) => setData('contrasena_confirmation', e.target.value)}
                                                 required
                                             />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
-                                                className="btn position-absolute top-50 end-0 translate-middle-y border-0 text-white-50 p-0 me-2"
-                                                style={{ fontSize: '0.75rem', background: 'transparent' }}
-                                                tabIndex={-1}
-                                            >
-                                                {showPasswordConfirmation ? 'Ocultar' : 'Ver'}
-                                            </button>
+                                            <OjoContrasena visible={showPasswordConfirmation} onToggle={() => setShowPasswordConfirmation(!showPasswordConfirmation)} color="#64a19d" hover="#8fd0cb" offsetTop="0.25rem" />
                                         </div>
                                         <InputError message={errors.contrasena_confirmation} className="mt-1 text-danger small" />
                                     </div>

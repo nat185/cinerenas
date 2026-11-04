@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Http\Middleware\CheckUserActiveSession;
 
 class LoginController extends Controller
 {
@@ -28,16 +29,12 @@ class LoginController extends Controller
             'contrasena' => ['required', 'min:6', 'confirmed'],
         ]);
 
-        // Identificador de la pestaña que hizo el registro
-        $tabId = $request->header('X-Tab-Session') ?? Str::random(40);
-
         $user = User::create([
             'nombre' => $request->nombre,      // Asumiendo que tu columna en BD es 'nombre'
             'correo' => $request->correo,     // Se guarda en la columna 'correo'
             'contrasena' => Hash::make($request->contrasena), // Se guarda en la columna 'contrasena'
             'rol' => 'usuario',
             'estado' => 'activo',            // Ajusta si requieres un valor por defecto
-            'active_session_id' => $tabId,
         ]);
 
         Auth::login($user, false);
@@ -55,7 +52,7 @@ class LoginController extends Controller
         ]);
     }
 
-    public function login(Request $request)
+    public function login(Request $request): \Illuminate\Http\RedirectResponse|Response
     {
         // 1. Validamos que el email y password vengan en el request
         $credentials = $request->validate([
@@ -69,7 +66,7 @@ class LoginController extends Controller
             'password' => $credentials['contrasena'], // Laravel internamente lee getAuthPassword() que ya apunta a 'contrasena'
         ];
 
-        if (! Auth::attempt($authCredentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($authCredentials, false)) {
             return back()->withErrors([
                 'correo' => 'Las credenciales no coinciden con nuestros registros.',
             ]);
@@ -92,12 +89,41 @@ class LoginController extends Controller
         }
         // ========================================================
 
-        $request->session()->regenerate();
+        // ========================================================
+        // UNA SOLA SESIÓN ACTIVA POR CUENTA (otra pestaña u otro dispositivo)
+        // ========================================================
+        $tabId = (string) $request->attributes->get('tab_id');
 
-        // La pestaña que acaba de iniciar sesión pasa a ser "la sesión válida" de este usuario.
-        $tabId = $request->header('X-Tab-Session') ?? Str::random(40);
-        $user->active_session_id = $tabId;
-        $user->save();
+        // Las sesiones vencidas por inactividad no cuentan
+        DB::table('user_active_sessions')
+            ->where('user_id', $user->id)
+            ->where('updated_at', '<', now()->subMinutes(CheckUserActiveSession::MINUTOS_INACTIVIDAD))
+            ->delete();
+
+        $otras = DB::table('user_active_sessions')
+            ->where('user_id', $user->id)
+            ->where('tab_session_id', '!=', $tabId);
+
+        if ($otras->exists()) {
+            if (! $request->boolean('force_login')) {
+                // Se anula este intento y se avisa en el Login
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return Inertia::render('Auth/Login', [
+                    'canResetPassword' => Route::has('password.request'),
+                    'status' => null,
+                    'session_conflict' => true,
+                    'conflict_email' => $request->input('correo'),
+                ]);
+            }
+
+            // El usuario aceptó: se cierra la otra sesión (en su siguiente acción vuelve al login)
+            $otras->delete();
+        }
+
+        $request->session()->regenerate();
 
         session(['last_activity_time' => time()]);
 
@@ -116,13 +142,6 @@ class LoginController extends Controller
     {
         $reason = $request->input('reason');
 
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-        if ($user) {
-            $user->active_session_id = null;
-            $user->save();
-        }
-
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -134,4 +153,3 @@ class LoginController extends Controller
         return redirect()->route('login')->with('status', $mensaje);
     }
 }
-

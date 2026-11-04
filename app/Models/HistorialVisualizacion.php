@@ -8,13 +8,14 @@ class HistorialVisualizacion extends Model
 {
     public $timestamps = false;
     protected $table = 'historial_visualizaciones';
-    protected $fillable = ['usuario_id', 'pelicula_id', 'visto_en'];
+    protected $fillable = ['usuario_id', 'pelicula_id', 'vista', 'visto_en'];
     protected $casts = [
+        'vista' => 'boolean',
         'visto_en' => 'datetime',
     ];
 
     public function pelicula()
     {
-        return $this->belongsTo(Pelicula::class);
+        return $this->belongsTo(Pelicula::class, 'pelicula_id');
     }
 }

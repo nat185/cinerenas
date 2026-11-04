@@ -8,6 +8,49 @@ const COLORS = {
     border: '#cbd5e1',
 };
 
+// Campo de contraseña con botón de ojo para ver / ocultar (solo el icono, sin contorno)
+function CampoContrasena({ value, onChange, placeholder, autoComplete }) {
+    const [ver, setVer] = useState(false);
+
+    return (
+        <div className="position-relative">
+            <input
+                type={ver ? 'text' : 'password'}
+                className="form-control bg-white text-dark border shadow-sm pe-5"
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                autoComplete={autoComplete}
+                style={{ fontSize: '0.85rem', borderRadius: '4px' }}
+            />
+            <button
+                type="button"
+                onClick={() => setVer(!ver)}
+                className="position-absolute top-50 end-0 translate-middle-y me-2 d-flex align-items-center justify-content-center border-0 bg-transparent p-0"
+                style={{ width: '28px', height: '28px', color: '#64748b', cursor: 'pointer', outline: 'none', boxShadow: 'none' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.darkBlue; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; }}
+                title={ver ? 'Ocultar contraseña' : 'Ver contraseña'}
+                aria-label={ver ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+                {ver ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                )}
+            </button>
+        </div>
+    );
+}
+
 export default function Configuracion({ auth, configuraciones = {}, generosDb = '' }) {
     const { flash } = usePage().props;
     const [mostrarFlash, setMostrarFlash] = useState(false);
@@ -164,40 +207,31 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
                                     </div>
                                     <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                                         <label className="form-label text-dark fw-semibold">Contraseña actual</label>
-                                        <input 
-                                            type="password" 
-                                            className="form-control bg-white text-dark border shadow-sm" 
-                                            placeholder="Ingresa tu contraseña actual" 
+                                        <CampoContrasena
+                                            placeholder="Ingresa tu contraseña actual"
                                             value={perfilForm.data.current_password}
                                             onChange={(e) => perfilForm.setData('current_password', e.target.value)}
                                             autoComplete="current-password"
-                                            style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
                                         {perfilForm.errors.current_password && <div className="text-danger small mt-1">{perfilForm.errors.current_password}</div>}
                                     </div>
                                     <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                                         <label className="form-label text-dark fw-semibold">Nueva contraseña</label>
-                                        <input 
-                                            type="password" 
-                                            className="form-control bg-white text-dark border shadow-sm" 
-                                            placeholder="Mínimo 8 caracteres (déjalo vacío si no deseas cambiarla)" 
+                                        <CampoContrasena
+                                            placeholder="Mínimo 8 caracteres (déjalo vacío si no deseas cambiarla)"
                                             value={perfilForm.data.password}
                                             onChange={(e) => perfilForm.setData('password', e.target.value)}
                                             autoComplete="new-password"
-                                            style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
                                         {perfilForm.errors.password && <div className="text-danger small mt-1">{perfilForm.errors.password}</div>}
                                     </div>
                                     <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                                         <label className="form-label text-dark fw-semibold">Confirmar nueva contraseña</label>
-                                        <input 
-                                            type="password" 
-                                            className="form-control bg-white text-dark border shadow-sm" 
-                                            placeholder="Repite la nueva contraseña" 
+                                        <CampoContrasena
+                                            placeholder="Repite la nueva contraseña"
                                             value={perfilForm.data.password_confirmation}
                                             onChange={(e) => perfilForm.setData('password_confirmation', e.target.value)}
                                             autoComplete="new-password"
-                                            style={{ fontSize: '0.85rem', borderRadius: '4px' }}
                                         />
                                     </div>
                                     <button type="submit" className="btn-custom-blue" disabled={perfilForm.processing}>
@@ -259,4 +293,3 @@ export default function Configuracion({ auth, configuraciones = {}, generosDb = 
         </AuthenticatedLayout>
     );
 }
-

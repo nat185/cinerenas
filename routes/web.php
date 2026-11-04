@@ -25,6 +25,7 @@ Route::get('/', function () {
 */
 
 Route::middleware(['auth', 'user.session'])->group(function () {
+    Route::post('/session/ping', fn () => response()->noContent())->name('session.ping');
 
     Route::get('/dashboard', function () {
         $user = Auth::user();
@@ -98,6 +99,7 @@ Route::middleware(['auth', 'user.session'])->group(function () {
         Route::delete('/resenas/{id}', [EditorController::class, 'destroyResena'])->name('resenas.destroy');
 
         Route::get('/comentarios', [EditorController::class, 'comentarios'])->name('comentarios');
+        Route::post('/comentarios/{id}/reportar', [EditorController::class, 'reportarComentario'])->name('comentarios.reportar');
         Route::get('/estadisticas', [EditorController::class, 'estadisticas'])->name('estadisticas');
 
         // --- Perfil del Editor ---
@@ -113,16 +115,24 @@ Route::middleware(['auth', 'user.session'])->group(function () {
         Route::get('/catalogo', [UserController::class, 'catalogo'])->name('catalogo');
 
         // --- Películas, Favoritos e Historial de Vistas ---
-        Route::get('/peliculas', [UserController::class, 'peliculas'])->name('peliculas');
+        Route::get('/peliculas', [UserController::class, 'catalogo'])->name('peliculas'); // mismo Catálogo
         Route::get('/favoritos', [UserController::class, 'favoritos'])->name('favoritos');
         Route::get('/vistas', [UserController::class, 'vistas'])->name('vistas');
 
         Route::match(['post', 'patch'], '/favoritos/{peliculaId}', [UserController::class, 'toggleFavorito'])->name('favoritos.toggle');
+        
+        // Rutas de valoraciones (añadido el alias 'guardar' para que coincida con el componente de estrellas)
         Route::post('/valoraciones', [UserController::class, 'guardarValoracion'])->name('valoraciones.store');
+        Route::post('/valoraciones/guardar', [UserController::class, 'guardarValoracion'])->name('valoraciones.guardar');
         Route::delete('/valoraciones/{id}', [UserController::class, 'destroyValoracion'])->name('valoraciones.destroy');
-        Route::post('/historial', [UserController::class, 'registrarVisita'])->name('historial.store');
+        
+        Route::post('/vistas', [UserController::class, 'toggleVista'])->name('vistas.toggle');
 
-        // --- Reseñas (URL limpia sin el prefijo "mis-") ---
+        // Valoración con estrellas de reseñas
+        Route::post('/resenas/valorar', [UserController::class, 'valorarResena'])->name('resenas.valorar');
+        Route::post('/valoraciones-resenas', [UserController::class, 'guardarValoracionResena'])->name('valoraciones.resenas.store');
+        
+        // --- Reseñas ---
         Route::get('/resenas', [UserController::class, 'resenas'])->name('resenas');
         Route::match(['post', 'patch'], '/resenas/{id}/guardar', [UserController::class, 'toggleGuardarResena'])->name('resenas.guardar');
 
@@ -136,6 +146,7 @@ Route::middleware(['auth', 'user.session'])->group(function () {
         Route::get('/perfil', [UserController::class, 'perfil'])->name('perfil');
         Route::put('/perfil', [UserController::class, 'actualizarPerfil'])->name('perfil.update');
     });
+    
 });
 
 require __DIR__ . '/auth.php';

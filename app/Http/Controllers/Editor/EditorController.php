@@ -194,6 +194,7 @@ class EditorController extends Controller
         }
 
         $plataformasArray = $validated['plataformas'] ?? [];
+        $plataformasStreaming = !empty($plataformasArray) ? implode(',', $plataformasArray) : null;
 
         Pelicula::create([
             'titulo' => trim($validated['titulo']),
@@ -204,7 +205,7 @@ class EditorController extends Controller
             'elenco' => $validated['elenco'] ?? null,
             'duracion_min' => $validated['duracion_min'] ?? null,
             'pais' => $validated['pais'] ?? null,
-            'plataformas_streaming' => $plataformasArray,
+            'plataformas_streaming' => $plataformasStreaming,
             'sinopsis' => $validated['sinopsis'] ?? null,
             'trailer_url' => $validated['trailer_url'] ?? null,
             'estado' => $validated['estado'],
@@ -267,6 +268,7 @@ class EditorController extends Controller
         $activa = ($validated['estado'] === 'archivada') ? 0 : 1;
 
         $plataformasArray = $validated['plataformas'] ?? [];
+        $plataformasStreaming = !empty($plataformasArray) ? implode(',', $plataformasArray) : null;
 
         $pelicula->update([
             'titulo' => trim($validated['titulo']),
@@ -276,7 +278,7 @@ class EditorController extends Controller
             'elenco' => $validated['elenco'] ?? null,
             'duracion_min' => $validated['duracion_min'] ?? null,
             'pais' => $validated['pais'] ?? null,
-            'plataformas_streaming' => $plataformasArray,
+            'plataformas_streaming' => $plataformasStreaming,
             'sinopsis' => $validated['sinopsis'] ?? null,
             'trailer_url' => $validated['trailer_url'] ?? null,
             'estado' => $validated['estado'],
@@ -436,16 +438,26 @@ class EditorController extends Controller
         $this->checkEditor();
 
         $validated = $request->validate([
-            'motivo' => 'required|string|max:500',
+            'tipo_reporte' => 'nullable|string|max:60',
+            'motivo' => 'nullable|string|max:500',
         ]);
+
+        $comentario = Comentario::findOrFail($id);
+
+        // La tabla reportes_moderacion guarda el motivo en un varchar(150):
+        // se une el tipo de reporte con el detalle y se recorta a ese límite.
+        $tipo = trim($validated['tipo_reporte'] ?? '');
+        $detalle = trim($validated['motivo'] ?? '');
+        $motivo = trim($tipo !== '' && $detalle !== '' ? "{$tipo}: {$detalle}" : ($tipo . $detalle));
+        $motivo = $motivo !== '' ? mb_substr($motivo, 0, 150) : 'Sin especificar';
 
         ReporteModeracion::updateOrCreate(
             [
-                'comentario_id' => $id,
+                'comentario_id' => $comentario->id,
                 'reportado_por_id' => Auth::id(),
             ],
             [
-                'motivo' => $validated['motivo'],
+                'motivo' => $motivo,
                 'estado' => 'pendiente',
             ]
         );

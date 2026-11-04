@@ -90,7 +90,7 @@ export default function AuthenticatedLayout({ auth, title, children }) {
 
     const rawRole = auth?.user?.role || auth?.user?.rol || 'usuario';
     const normalizedRole = rawRole.toLowerCase();
-    const menuKey = normalizedRole === 'administrador' ? 'admin' : normalizedRole;
+    const menuKey = normalizedRole === 'administrador' ? 'admin' : (MENUS[normalizedRole] ? normalizedRole : 'usuario');
     const menu = MENUS[menuKey] || MENUS['usuario'];
 
     const safeRoute = (name) => {
@@ -103,12 +103,8 @@ export default function AuthenticatedLayout({ auth, title, children }) {
 
     const isActive = (name) => {
         try {
-            const path = new URL(
-                route(name),
-                window.location.origin
-            ).pathname;
-
-            return url === path;
+            const routePath = new URL(route(name), window.location.origin).pathname;
+            return url === routePath || url.startsWith(routePath + '/');
         } catch (e) {
             return false;
         }
@@ -201,7 +197,7 @@ export default function AuthenticatedLayout({ auth, title, children }) {
                                 fontSize: '0.9rem'
                             }}
                         >
-                            {auth?.user?.nombre}
+                            {auth?.user?.nombre || auth?.user?.name}
                         </div>
                         <span
                             className="badge bg-primary text-uppercase"
@@ -248,28 +244,29 @@ export default function AuthenticatedLayout({ auth, title, children }) {
                 }}
             >
                 <ul className="list-unstyled d-flex flex-column gap-1 p-3 mb-0">
-                    {menu.map((item) => (
-                        <li key={item.route}>
-                            <Link
-                                href={safeRoute(item.route)}
-                                className={`text-decoration-none d-flex align-items-center gap-3 p-2 rounded ${
-                                    isActive(item.route)
-                                        ? 'text-white bg-primary bg-opacity-25 border-start border-primary border-3'
-                                        : 'text-white-50'
-                                }`}
-                            >
-                                <i
-                                    className={`fas ${item.icon} ${
-                                        isActive(item.route) ? 'text-primary' : ''
+                    {menu.map((item) => {
+                        const active = isActive(item.route);
+                        return (
+                            <li key={item.route}>
+                                <Link
+                                    href={safeRoute(item.route)}
+                                    className={`text-decoration-none d-flex align-items-center gap-3 p-2 rounded ${
+                                        active
+                                            ? 'text-white bg-primary bg-opacity-25 border-start border-primary border-3'
+                                            : 'text-white-50'
                                     }`}
-                                    style={{ width: '18px', textAlign: 'center' }}
-                                ></i>
-                                <span style={{ color: isActive(item.route) ? '#ffffff' : 'inherit' }}>
-                                    {item.label}
-                                </span>
-                            </Link>
-                        </li>
-                    ))}
+                                >
+                                    <i
+                                        className={`fas ${item.icon} ${active ? 'text-primary' : ''}`}
+                                        style={{ width: '18px', textAlign: 'center' }}
+                                    ></i>
+                                    <span style={{ color: active ? '#ffffff' : 'inherit' }}>
+                                        {item.label}
+                                    </span>
+                                </Link>
+                            </li>
+                        );
+                    })}
                 </ul>
             </aside>
 

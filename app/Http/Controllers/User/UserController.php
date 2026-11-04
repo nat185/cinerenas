@@ -14,32 +14,52 @@ use App\Models\HistorialVisualizacion;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
+use Illuminate\Support\Carbon;
 
 class UserController extends Controller
 {
-    // --------- Helper: convierte una Pelicula en el array que esperan las vistas ---------
+    private ?array $vistasCache = null;
+
+    private function idsVistas(): array
+    {
+        if ($this->vistasCache === null) {
+            $this->vistasCache = HistorialVisualizacion::where('usuario_id', Auth::id())
+                ->where('vista', true)
+                ->pluck('pelicula_id')
+                ->toArray();
+        }
+        return $this->vistasCache;
+    }
+
     private function mapPelicula($pelicula, $favoritoIds, $valoracionesMap)
     {
+        $plataformas = $pelicula->plataformas_streaming ?? [];
+
         return [
             'id' => $pelicula->id,
             'titulo' => $pelicula->titulo,
             'poster' => $pelicula->poster_path ?? null,
+            'genero_id' => $pelicula->genero_id,
             'genero' => $pelicula->genero->nombre ?? 'Sin género',
             'anio' => $pelicula->anio,
             'director' => $pelicula->director,
+            'elenco' => $pelicula->elenco,
             'duracion_min' => $pelicula->duracion_min,
             'pais' => $pelicula->pais,
-            'plataformas' => $pelicula->plataformas_streaming ?? [],
+            'plataformas' => $plataformas,
+            'plataformas_streaming' => $plataformas,
             'sinopsis' => $pelicula->sinopsis,
             'trailer_url' => $pelicula->trailer_url,
             'valoracion_promedio' => round($pelicula->valoraciones_pelicula_avg_puntuacion ?? 0, 1),
             'total_valoraciones' => $pelicula->valoraciones_pelicula_count ?? 0,
             'es_favorito' => in_array($pelicula->id, $favoritoIds),
+            'es_vista' => in_array($pelicula->id, $this->idsVistas()),
             'mi_valoracion' => $valoracionesMap[$pelicula->id] ?? null,
             'comentarios' => $pelicula->comentarios
-                ->where('estado', '!=', 'oculto')
+                ->filter(fn ($c) => $c->estado === 'visible')
                 ->sortByDesc('created_at')
                 ->take(8)
                 ->values()
@@ -53,11 +73,46 @@ class UserController extends Controller
         ];
     }
 
+    private function datosValoracionResenas(array $resenaIds): array
+    {
+        if (empty($resenaIds)) {
+            return [[], [], []];
+        }
+
+        $stats = DB::table('valoraciones_resenas')
+            ->select('resena_id', DB::raw('AVG(puntuacion) as promedio'), DB::raw('COUNT(*) as total'))
+            ->whereIn('resena_id', $resenaIds)
+            ->groupBy('resena_id')
+            ->get()
+            ->keyBy('resena_id');
+
+        $mias = DB::table('valoraciones_resenas')
+            ->where('usuario_id', Auth::id())
+            ->whereIn('resena_id', $resenaIds)
+            ->pluck('puntuacion', 'resena_id')
+            ->toArray();
+
+        $promedios = [];
+        $totales = [];
+        foreach ($stats as $id => $fila) {
+            $promedios[$id] = round((float) $fila->promedio, 1);
+            $totales[$id] = (int) $fila->total;
+        }
+
+        return [$promedios, $totales, $mias];
+    }
+
     private function baseQuery()
     {
         return Pelicula::where('activa', true)
             ->where('estado', 'publicada')
-            ->with(['genero', 'comentarios.usuario:id,nombre'])
+            ->with([
+                'genero', 
+                'comentarios' => function ($query) {
+                    $query->where('estado', 'visible');
+                }, 
+                'comentarios.usuario:id,nombre'
+            ])
             ->withAvg('valoracionesPelicula', 'puntuacion')
             ->withCount('valoracionesPelicula');
     }
@@ -74,17 +129,47 @@ class UserController extends Controller
     {
         [$favoritoIds, $valoracionesMap] = $this->contextoUsuario();
 
-        $mejorValoradas = $this->baseQuery()->orderByDesc('valoraciones_pelicula_avg_puntuacion')->limit(10)->get()
-            ->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $queryMejor = $this->baseQuery()->orderByDesc('valoraciones_pelicula_avg_puntuacion');
+        $queryNuevas = $this->baseQuery()->latest();
 
-        $nuevas = $this->baseQuery()->latest()->limit(10)->get()
-            ->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $generosInteres = Pelicula::whereIn('id', array_merge($favoritoIds, $this->idsVistas()))
+            ->pluck('genero_id')
+            ->unique()
+            ->map(fn ($g) => (int) $g)
+            ->all();
 
-        $generosFavoritos = Pelicula::whereIn('id', $favoritoIds)->pluck('genero_id')->unique();
-        $recomendadas = $this->baseQuery()
-            ->when($generosFavoritos->isNotEmpty(), fn ($q) => $q->whereIn('genero_id', $generosFavoritos))
-            ->inRandomOrder()->limit(10)->get()
-            ->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $queryRecomendadas = $this->baseQuery();
+        if (!empty($generosInteres)) {
+            $queryRecomendadas->orderByRaw('(genero_id IN (' . implode(',', $generosInteres) . ')) DESC');
+        }
+        $queryRecomendadas->inRandomOrder(Auth::id() . date('Ymd'));
+
+        $mejorValoradas = $queryMejor->limit(30)->get()->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $nuevas = $queryNuevas->limit(30)->get()->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $recomendadas = $queryRecomendadas->limit(30)->get()->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+
+        $resenasColeccion = Resena::where('estado', 'publicada')
+            ->where('activa', 1)
+            ->with(['pelicula:id,titulo,poster_path', 'editor:id,nombre'])
+            ->latest()
+            ->limit(6)
+            ->get();
+
+        [$promResenas, $totResenas, $miasResenas] = $this->datosValoracionResenas($resenasColeccion->pluck('id')->all());
+
+        $resenasMejorValoradas = $resenasColeccion->map(fn ($r) => [
+            'id' => $r->id,
+            'titulo' => $r->titulo,
+            'contenido' => $r->contenido,
+            'calificacion' => $r->calificacion,
+            'valoracion_promedio' => $promResenas[$r->id] ?? 0,
+            'total_valoraciones' => $totResenas[$r->id] ?? 0,
+            'mi_valoracion' => $miasResenas[$r->id] ?? null,
+            'pelicula' => $r->pelicula->titulo ?? 'N/A',
+            'pelicula_poster' => $r->pelicula->poster_path ?? null,
+            'autor' => $r->editor->nombre ?? 'Editor',
+            'fecha' => $r->created_at?->format('d/m/Y'),
+        ]);
 
         $generos = Genero::where('activo', true)->get(['id', 'nombre']);
 
@@ -93,7 +178,9 @@ class UserController extends Controller
             'mejorValoradas' => $mejorValoradas,
             'nuevas' => $nuevas,
             'recomendadas' => $recomendadas,
+            'resenasMejorValoradas' => $resenasMejorValoradas,
             'generos' => $generos,
+            'filtros' => $request->only(['genero_id']),
         ]);
     }
 
@@ -101,55 +188,72 @@ class UserController extends Controller
     {
         [$favoritoIds, $valoracionesMap] = $this->contextoUsuario();
 
-        $query = $this->baseQuery();
+        $coleccion = $this->baseQuery()
+            ->with('editor:id,nombre')
+            ->orderBy('titulo')
+            ->get();
 
-        if ($request->filled('q')) {
-            $query->where('titulo', 'like', '%' . $request->q . '%');
-        }
-        if ($request->filled('genero_id')) {
-            $query->where('genero_id', $request->genero_id);
-        }
-        if ($request->filled('anio')) {
-            $query->where('anio', $request->anio);
-        }
-        if ($request->filled('valoracion_min')) {
-            $query->having('valoraciones_pelicula_avg_puntuacion', '>=', $request->valoracion_min);
-        }
+        $peliculas = $coleccion->map(function ($p) use ($favoritoIds, $valoracionesMap) {
+            $datos = $this->mapPelicula($p, $favoritoIds, $valoracionesMap);
+            $datos['autor'] = $p->editor->nombre ?? '';
+            return $datos;
+        })->values();
 
-        $peliculas = $query->latest()->get()
-            ->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $paises = $coleccion->pluck('pais')
+            ->map(fn ($x) => trim((string) $x))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
 
-        if ($request->filled('plataforma')) {
-            $plataforma = strtolower($request->plataforma);
-            $peliculas = $peliculas->filter(fn ($p) => collect($p['plataformas'])->contains(fn ($pl) => str_contains(strtolower($pl), $plataforma)))->values();
-        }
+        $plataformas = $coleccion
+            ->flatMap(fn ($p) => $p->plataformas_streaming ?? [])
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
 
         return Inertia::render('User/Catalogo', [
             'auth' => ['user' => Auth::user()],
             'peliculas' => $peliculas,
-            'generos' => Genero::where('activo', true)->get(['id', 'nombre']),
-            'filtros' => $request->only(['q', 'genero_id', 'anio', 'valoracion_min', 'plataforma']),
+            'generos' => Genero::where('activo', true)->orderBy('nombre')->get(['id', 'nombre']),
+            'paises' => $paises,
+            'plataformas' => $plataformas,
+            'anioMin' => 1888,
+            'anioMax' => (int) date('Y'),
         ]);
     }
 
-    // --- NUEVA VISTA: Mis Favoritos (Películas y Reseñas favoritas) ---
+    public function peliculas(Request $request)
+    {
+        return $this->catalogo($request);
+    }
+
     public function favoritos(Request $request)
     {
         $userId = Auth::id();
         [$favoritoIds, $valoracionesMap] = $this->contextoUsuario();
 
         $favoritosPeliculas = Pelicula::whereIn('id', $favoritoIds)
-            ->with(['genero', 'comentarios.usuario:id,nombre'])
+            ->with([
+                'genero', 
+                'comentarios' => function ($q) { $q->where('estado', 'visible'); }, 
+                'comentarios.usuario:id,nombre'
+            ])
             ->withAvg('valoracionesPelicula', 'puntuacion')
             ->withCount('valoracionesPelicula')
             ->get()
             ->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
 
         $guardadasIds = ResenaGuardada::where('usuario_id', $userId)->pluck('resena_id')->toArray();
+        [$promResenas, $totResenas, $miasResenas] = $this->datosValoracionResenas($guardadasIds);
         $favoritosResenas = Resena::whereIn('id', $guardadasIds)
             ->with(['pelicula:id,titulo,poster_path', 'editor:id,nombre'])
             ->get()
             ->map(fn ($r) => [
+                'valoracion_promedio' => $promResenas[$r->id] ?? 0,
+                'total_valoraciones' => $totResenas[$r->id] ?? 0,
+                'mi_valoracion' => $miasResenas[$r->id] ?? null,
                 'id' => $r->id,
                 'titulo' => $r->titulo,
                 'contenido' => $r->contenido,
@@ -168,23 +272,16 @@ class UserController extends Controller
         ]);
     }
 
-    // --- NUEVA VISTA: Películas Vistas (con sus filtros correspondientes) ---
     public function vistas(Request $request)
     {
         $userId = Auth::id();
         [$favoritoIds, $valoracionesMap] = $this->contextoUsuario();
 
-        $peliculaIdsVistas = HistorialVisualizacion::where('usuario_id', $userId)
-            ->pluck('pelicula_id')
-            ->unique()
-            ->toArray();
+        $vistasMap = HistorialVisualizacion::where('usuario_id', $userId)
+            ->where('vista', true)
+            ->pluck('visto_en', 'pelicula_id');
 
-        $query = Pelicula::whereIn('id', $peliculaIdsVistas)
-            ->where('activa', true)
-            ->where('estado', 'publicada')
-            ->with(['genero', 'comentarios.usuario:id,nombre'])
-            ->withAvg('valoracionesPelicula', 'puntuacion')
-            ->withCount('valoracionesPelicula');
+        $query = $this->baseQuery()->whereIn('id', $vistasMap->keys());
 
         if ($request->filled('q')) {
             $query->where('titulo', 'like', '%' . $request->q . '%');
@@ -195,53 +292,31 @@ class UserController extends Controller
         if ($request->filled('anio')) {
             $query->where('anio', $request->anio);
         }
+        if ($request->filled('valoracion_min')) {
+            $query->having('valoraciones_pelicula_avg_puntuacion', '>=', $request->valoracion_min);
+        }
 
-        $peliculas = $query->latest()->get()
-            ->map(fn ($p) => $this->mapPelicula($p, $favoritoIds, $valoracionesMap));
+        $peliculas = $query->get()
+            ->sortByDesc(fn ($p) => $vistasMap[$p->id] ?? null)
+            ->values()
+            ->map(function ($p) use ($favoritoIds, $valoracionesMap, $vistasMap) {
+                $datos = $this->mapPelicula($p, $favoritoIds, $valoracionesMap);
+                $visto = $vistasMap[$p->id] ?? null;
+                // Formato limpio Día/Mes/Año
+                $datos['fecha_agregado'] = $visto ? Carbon::parse($visto)->format('d/m/Y') : null;
+                return $datos;
+            });
+
+        if ($request->filled('plataforma')) {
+            $plataforma = strtolower($request->plataforma);
+            $peliculas = $peliculas->filter(fn ($p) => collect($p['plataformas'])->contains(fn ($pl) => str_contains(strtolower($pl), $plataforma)))->values();
+        }
 
         return Inertia::render('User/Vistas', [
             'auth' => ['user' => Auth::user()],
-            'peliculas' => $peliculas,
+            'peliculasVistas' => $peliculas,
             'generos' => Genero::where('activo', true)->get(['id', 'nombre']),
-            'filtros' => $request->only(['q', 'genero_id', 'anio']),
-        ]);
-    }
-
-    public function peliculas(Request $request)
-    {
-        $userId = Auth::id();
-        [$favoritoIds, $valoracionesMap] = $this->contextoUsuario();
-
-        $favoritos = Pelicula::whereIn('id', $favoritoIds)
-            ->with('genero')->withAvg('valoracionesPelicula', 'puntuacion')->withCount('valoracionesPelicula')
-            ->get()->map(fn ($p) => $this->mapPelicula($p->load('comentarios.usuario'), $favoritoIds, $valoracionesMap));
-
-        $historial = HistorialVisualizacion::where('usuario_id', $userId)
-            ->with('pelicula:id,titulo')
-            ->latest('visto_en')->limit(30)->get()
-            ->map(fn ($h) => [
-                'id' => $h->id,
-                'pelicula' => $h->pelicula->titulo ?? 'Película eliminada',
-                'pelicula_id' => $h->pelicula_id,
-                'fecha' => $h->visto_en?->format('d/m/Y H:i'),
-            ]);
-
-        $misValoraciones = ValoracionPelicula::where('usuario_id', $userId)
-            ->with('pelicula:id,titulo')
-            ->orderByDesc('id')->get()
-            ->map(fn ($v) => [
-                'id' => $v->id,
-                'pelicula' => $v->pelicula->titulo ?? 'Película eliminada',
-                'pelicula_id' => $v->pelicula_id,
-                'puntuacion' => $v->puntuacion,
-                'fecha' => $v->creado ?? null,
-            ]);
-
-        return Inertia::render('User/Peliculas', [
-            'auth' => ['user' => Auth::user()],
-            'favoritos' => $favoritos,
-            'historial' => $historial,
-            'misValoraciones' => $misValoraciones,
+            'filtros' => $request->only(['q', 'genero_id', 'anio', 'valoracion_min', 'plataforma']),
         ]);
     }
 
@@ -251,6 +326,7 @@ class UserController extends Controller
         $guardadasIds = ResenaGuardada::where('usuario_id', $userId)->pluck('resena_id')->toArray();
 
         $query = Resena::where('estado', 'publicada')
+            ->where('activa', 1)
             ->with(['pelicula:id,titulo,poster_path', 'editor:id,nombre']);
 
         if ($request->filled('pelicula')) {
@@ -263,8 +339,14 @@ class UserController extends Controller
             $query->whereIn('id', $guardadasIds);
         }
 
-        $resenas = $query->latest()->get()->map(fn ($r) => [
+        $coleccion = $query->latest()->get();
+        [$promResenas, $totResenas, $miasResenas] = $this->datosValoracionResenas($coleccion->pluck('id')->all());
+
+        $resenas = $coleccion->map(fn ($r) => [
             'id' => $r->id,
+            'valoracion_promedio' => $promResenas[$r->id] ?? 0,
+            'total_valoraciones' => $totResenas[$r->id] ?? 0,
+            'mi_valoracion' => $miasResenas[$r->id] ?? null,
             'titulo' => $r->titulo,
             'contenido' => $r->contenido,
             'calificacion' => $r->calificacion,
@@ -303,6 +385,7 @@ class UserController extends Controller
         $userId = Auth::id();
 
         $comentarios = Comentario::where('usuario_id', $userId)
+            ->where('estado', 'visible')
             ->with('pelicula:id,titulo')
             ->latest()->get()
             ->map(fn ($c) => [
@@ -359,9 +442,10 @@ class UserController extends Controller
         if ($comentario->usuario_id !== Auth::id()) {
             abort(403, 'No puedes eliminar un comentario que no es tuyo.');
         }
-        $comentario->delete();
+        
+        $comentario->update(['estado' => 'oculto']);
 
-        return redirect()->back()->with('message', 'Comentario eliminado.');
+        return redirect()->back()->with('message', 'Comentario ocultado exitosamente.');
     }
 
     public function toggleFavorito($peliculaId)
@@ -387,14 +471,7 @@ class UserController extends Controller
             'puntuacion' => 'required|integer|min:1|max:5',
         ]);
 
-        ValoracionPelicula::updateOrCreate(
-            ['usuario_id' => Auth::id(), 'pelicula_id' => $validated['pelicula_id']],
-            [
-                'puntuacion' => $validated['puntuacion'],
-                'actualizado' => now()->toDateString(),
-                'creado' => now()->toDateString(),
-            ]
-        );
+        $this->guardarPuntuacion('valoraciones_peliculas', 'pelicula_id', $validated['pelicula_id'], $validated['puntuacion']);
 
         return redirect()->back()->with('message', '¡Gracias por tu valoración!');
     }
@@ -410,17 +487,74 @@ class UserController extends Controller
         return redirect()->back()->with('message', 'Valoración eliminada.');
     }
 
-    public function registrarVisita(Request $request)
+    public function toggleVista(Request $request)
     {
         $validated = $request->validate(['pelicula_id' => 'required|exists:peliculas,id']);
 
-        HistorialVisualizacion::create([
-            'usuario_id' => Auth::id(),
-            'pelicula_id' => $validated['pelicula_id'],
-            'visto_en' => now(),
+        $registro = HistorialVisualizacion::where('usuario_id', Auth::id())
+            ->where('pelicula_id', $validated['pelicula_id'])
+            ->first();
+
+        if ($registro) {
+            $nuevaVista = !$registro->vista;
+            $registro->update([
+                'vista' => $nuevaVista,
+                'visto_en' => $nuevaVista ? now() : $registro->visto_en,
+            ]);
+        } else {
+            HistorialVisualizacion::create([
+                'usuario_id' => Auth::id(),
+                'pelicula_id' => $validated['pelicula_id'],
+                'vista' => true,
+                'visto_en' => now(),
+            ]);
+            $nuevaVista = true;
+        }
+
+        return redirect()->back()->with('message', $nuevaVista
+            ? 'Película marcada como vista.'
+            : 'Película quitada de tus vistas.');
+    }
+
+    public function valorarResena(Request $request)
+    {
+        $validated = $request->validate([
+            'resena_id' => 'required|exists:resenas,id',
+            'puntuacion' => 'required|integer|min:1|max:5',
         ]);
 
-        return response()->noContent();
+        $this->guardarPuntuacion('valoraciones_resenas', 'resena_id', $validated['resena_id'], $validated['puntuacion']);
+
+        return redirect()->back()->with('message', '¡Gracias por valorar la reseña!');
+    }
+
+    public function guardarValoracionResena(Request $request)
+    {
+        return $this->valorarResena($request);
+    }
+
+    public function registrarVisita(Request $request)
+    {
+        return redirect()->back();
+    }
+
+    private function guardarPuntuacion(string $tabla, string $columna, $elementoId, int $puntuacion): void
+    {
+        $hoy = now()->toDateString();
+        $filtro = ['usuario_id' => Auth::id(), $columna => $elementoId];
+
+        if (DB::table($tabla)->where($filtro)->exists()) {
+            DB::table($tabla)->where($filtro)->update([
+                'puntuacion' => $puntuacion,
+                'actualizado' => $hoy,
+            ]);
+        } else {
+            DB::table($tabla)->insert($filtro + [
+                'puntuacion' => $puntuacion,
+                'creado' => $hoy,
+                'actualizado' => $hoy,
+            ]);
+        }
     }
 
     public function perfil(Request $request)

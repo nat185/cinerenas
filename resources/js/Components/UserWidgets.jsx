@@ -35,12 +35,11 @@ export function FlashToast({ flash }) {
 function resolvePoster(path) {
     if (!path) return '/dist/assets/img/posters/default.jpg';
     if (path.startsWith('http') || path.startsWith('/')) return path;
-    const cleanPath = path.replace(/^\/storage\//, '').replace(/^storage\//, '');
-    return `/storage/${cleanPath}`;
+    return `/storage/${path}`;
 }
 
 /* =========================================================================
-   PosterImg — póster reutilizable
+   PosterImg — póster reutilizable (usado por Peliculas.jsx/Resenas.jsx, etc.)
 ========================================================================= */
 export function PosterImg({ src, alt, width = '100%', height = 'auto', className = '', style = {}, onClick }) {
     return (
@@ -68,51 +67,57 @@ export function PosterImg({ src, alt, width = '100%', height = 'auto', className
 ========================================================================= */
 export function RatingStars({ pelicula }) {
     const [valorActual, setValorActual] = useState(pelicula.mi_valoracion || 0);
-    const [hover, setHover] = useState(0);
     const [enviando, setEnviando] = useState(false);
+    const [hover, setHover] = useState(0);
 
-    const calificar = (estrellas) => {
+    const calificar = (puntos) => {
         if (enviando) return;
+        const anterior = valorActual;
         setEnviando(true);
-        setValorActual(estrellas);
+        setValorActual(puntos);
         router.post(
             route('user.valoraciones.store'),
-            { pelicula_id: pelicula.id, puntuacion: estrellas },
+            { pelicula_id: pelicula.id, puntuacion: puntos },
             {
                 preserveScroll: true,
                 preserveState: true,
+                onError: () => setValorActual(anterior),
                 onFinish: () => setEnviando(false),
             }
         );
     };
 
     return (
-        <div className="d-flex align-items-center gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-                <i
-                    key={n}
-                    className={`fa${(hover || valorActual) >= n ? 's' : 'r'} fa-star`}
-                    onClick={() => calificar(n)}
-                    onMouseEnter={() => setHover(n)}
-                    onMouseLeave={() => setHover(0)}
-                    style={{
-                        color: '#ffc107',
-                        cursor: 'pointer',
-                        fontSize: '1.2rem',
-                        transition: 'transform 0.15s ease',
-                        transform: hover === n ? 'scale(1.2)' : 'scale(1)',
-                    }}
-                    title={`Calificar con ${n} estrella${n > 1 ? 's' : ''}`}
-                ></i>
-            ))}
-            <span className="text-white-50 ms-2" style={{ fontSize: '0.8rem' }}>
-                ({pelicula.valoracion_promedio ?? 0} ★ · {pelicula.total_valoraciones ?? 0} valoraciones)
-            </span>
-            {valorActual > 0 && (
-                <span className="badge bg-success ms-2" style={{ fontSize: '0.68rem' }}>
-                    Tu valoración: {valorActual} ★
-                </span>
-            )}
+        <div>
+            <div className="text-white-50 mb-1" style={{ fontSize: '0.72rem' }}>Tu puntuación</div>
+            <div className="d-inline-flex align-items-center" onMouseLeave={() => setHover(0)}>
+                {[1, 2, 3, 4, 5].map((n) => {
+                    const lleno = (hover || valorActual) >= n;
+                    return (
+                        <button
+                            key={n}
+                            type="button"
+                            disabled={enviando}
+                            onClick={() => calificar(n)}
+                            onMouseEnter={() => setHover(n)}
+                            title={`Puntuar con ${n} estrella${n > 1 ? 's' : ''}`}
+                            style={{
+                                background: 'none', border: 'none', padding: '0 3px',
+                                color: lleno ? '#ffc107' : 'rgba(255,255,255,0.4)',
+                                fontSize: '1.55rem', lineHeight: 1,
+                                cursor: enviando ? 'wait' : 'pointer',
+                                transition: 'transform 0.15s ease, color 0.15s ease',
+                                transform: hover === n ? 'scale(1.2)' : 'scale(1)',
+                            }}
+                        >
+                            {lleno ? '★' : '☆'}
+                        </button>
+                    );
+                })}
+            </div>
+            <div className="text-white-50 mt-1" style={{ fontSize: '0.72rem' }}>
+                Promedio {pelicula.valoracion_promedio ?? 0} ★ · {pelicula.total_valoraciones ?? 0} valoraciones
+            </div>
         </div>
     );
 }
@@ -240,12 +245,15 @@ export function MovieRow({ titulo, peliculas = [], onAbrir }) {
 }
 
 /* =========================================================================
-   MovieModal — detalle de película (Forzado a diseño oscuro sin cuadro blanco)
+   MovieModal — detalle de película, sin iframe de tráiler (evita pantalla
+   en blanco cuando trailer_url es null), con estrellas reales,
+   favoritos, plataformas y comentarios.
 ========================================================================= */
 export function MovieModal({ pelicula, onClose }) {
     const [textoComentario, setTextoComentario] = useState('');
     const [enviandoComentario, setEnviandoComentario] = useState(false);
     const [esFavorito, setEsFavorito] = useState(pelicula.es_favorito);
+    const [esVista, setEsVista] = useState(!!pelicula.es_vista);
 
     if (!pelicula) return null;
 
@@ -258,6 +266,11 @@ export function MovieModal({ pelicula, onClose }) {
     const toggleFavorito = () => {
         setEsFavorito(!esFavorito);
         router.post(route('user.favoritos.toggle', pelicula.id), {}, { preserveScroll: true, preserveState: true });
+    };
+
+    const toggleVista = () => {
+        setEsVista(!esVista);
+        router.post(route('user.vistas.toggle'), { pelicula_id: pelicula.id }, { preserveScroll: true, preserveState: true });
     };
 
     const enviarComentario = (e) => {
@@ -279,74 +292,91 @@ export function MovieModal({ pelicula, onClose }) {
         <div
             onClick={onClose}
             style={{
-                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                overflowY: 'auto', padding: '20px 16px',
+                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999,
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                overflowY: 'auto', padding: '40px 16px',
             }}
         >
             <div
                 onClick={(e) => e.stopPropagation()}
                 style={{
-                    backgroundColor: '#141414', color: '#fff', borderRadius: '10px',
-                    maxWidth: '750px', width: '100%', overflow: 'hidden',
-                    boxShadow: '0 25px 50px rgba(0,0,0,0.8)', border: '1px solid #333',
+                    backgroundColor: '#141414', color: '#fff', borderRadius: '8px',
+                    maxWidth: '820px', width: '100%', overflow: 'hidden',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.6)', animation: 'modalEntrada 0.25s ease both',
                 }}
             >
-                {/* Cabecera con imagen de fondo y título */}
-                <div style={{ position: 'relative', height: '220px', backgroundColor: '#000', overflow: 'hidden' }}>
+                <style>{`
+                    @keyframes modalEntrada {
+                        from { opacity: 0; transform: translateY(20px) scale(0.98); }
+                        to { opacity: 1; transform: translateY(0) scale(1); }
+                    }
+                `}</style>
+
+                {/* Backdrop: usamos el póster como imagen de cabecera (sin iframe) */}
+                <div style={{ position: 'relative', height: '260px', overflow: 'hidden' }}>
                     <img
                         src={resolvePoster(pelicula.poster)}
                         alt={pelicula.titulo}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: '0.5' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 15%', filter: 'brightness(0.65)' }}
                         onError={(e) => { e.target.src = '/dist/assets/img/posters/default.jpg'; }}
                     />
                     <div
                         style={{
                             position: 'absolute', inset: 0,
-                            background: 'linear-gradient(0deg, #141414 10%, rgba(20,20,20,0.4) 100%)',
+                            background: 'linear-gradient(0deg, #141414 5%, transparent 55%)',
                         }}
                     ></div>
-
                     <button
                         onClick={onClose}
                         style={{
-                            position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px',
-                            borderRadius: '50%', border: 'none', backgroundColor: 'rgba(0,0,0,0.7)',
-                            color: '#fff', fontSize: '1rem', cursor: 'pointer', zIndex: 10,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            position: 'absolute', top: '12px', right: '12px', width: '34px', height: '34px',
+                            borderRadius: '50%', border: 'none', backgroundColor: 'rgba(20,20,20,0.85)',
+                            color: '#fff', fontSize: '1.1rem', cursor: 'pointer',
                         }}
                         title="Cerrar"
                     >
                         <i className="fas fa-times"></i>
                     </button>
-
-                    <div style={{ position: 'absolute', bottom: '16px', left: '20px', right: '20px' }}>
-                        <h2 className="mb-1" style={{ fontWeight: 700, fontSize: '1.5rem', color: '#fff' }}>{pelicula.titulo}</h2>
-                        <div className="d-flex align-items-center gap-2 text-white-50" style={{ fontSize: '0.82rem' }}>
+                    <div className="position-absolute bottom-0 start-0 p-3">
+                        <h2 className="mb-1" style={{ fontWeight: 700, fontSize: '1.6rem' }}>{pelicula.titulo}</h2>
+                        <div className="d-flex align-items-center gap-2 text-white-50" style={{ fontSize: '0.85rem' }}>
                             <span>{pelicula.anio || 'N/A'}</span>
                             {pelicula.duracion_min && <span>· {pelicula.duracion_min} min</span>}
-                            <span className="badge" style={{ backgroundColor: '#5c8d89', color: '#fff' }}>{pelicula.genero}</span>
+                            <span className="badge" style={{ backgroundColor: '#5c8d89' }}>{pelicula.genero}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Contenido principal del modal */}
-                <div style={{ padding: '24px', backgroundColor: '#141414', color: '#fff' }}>
+                <div className="p-4">
                     {/* Valoración + favoritos */}
-                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 pb-3 border-bottom border-secondary">
+                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
                         <RatingStars pelicula={pelicula} />
-                        <button
-                            onClick={toggleFavorito}
-                            className="btn btn-sm px-3"
-                            style={{
-                                backgroundColor: esFavorito ? '#e63950' : 'transparent',
-                                border: `1px solid ${esFavorito ? '#e63950' : 'rgba(255,255,255,0.4)'}`,
-                                color: '#fff', fontSize: '0.78rem', fontWeight: 600, borderRadius: '4px',
-                            }}
-                        >
-                            <i className={`fa${esFavorito ? 's' : 'r'} fa-heart me-2`}></i>
-                            {esFavorito ? 'En tus favoritos' : 'Agregar a favoritos'}
-                        </button>
+                        <div className="d-flex flex-wrap gap-2">
+                            <button
+                                onClick={toggleVista}
+                                className="btn btn-sm px-3"
+                                style={{
+                                    backgroundColor: esVista ? '#5c8d89' : 'transparent',
+                                    border: `1px solid ${esVista ? '#5c8d89' : 'rgba(255,255,255,0.4)'}`,
+                                    color: '#fff', fontSize: '0.78rem', fontWeight: 600, borderRadius: '4px',
+                                }}
+                            >
+                                <i className={`fas ${esVista ? 'fa-check-circle' : 'fa-eye'} me-2`}></i>
+                                {esVista ? 'Vista' : 'Marcar como vista'}
+                            </button>
+                            <button
+                                onClick={toggleFavorito}
+                                className="btn btn-sm px-3"
+                                style={{
+                                    backgroundColor: esFavorito ? '#e63950' : 'transparent',
+                                    border: `1px solid ${esFavorito ? '#e63950' : 'rgba(255,255,255,0.4)'}`,
+                                    color: '#fff', fontSize: '0.78rem', fontWeight: 600, borderRadius: '4px',
+                                }}
+                            >
+                                <i className={`fa${esFavorito ? 's' : 'r'} fa-heart me-2`}></i>
+                                {esFavorito ? 'En tus favoritos' : 'Agregar a favoritos'}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Plataformas */}
@@ -361,56 +391,57 @@ export function MovieModal({ pelicula, onClose }) {
                     )}
 
                     {/* Director / País */}
-                    <div className="row g-2 mb-3 text-white-50" style={{ fontSize: '0.82rem' }}>
+                    <div className="row g-2 mb-3" style={{ fontSize: '0.85rem' }}>
                         <div className="col-sm-6">
-                            <strong className="text-white">Director:</strong> {pelicula.director || 'No especificado'}
+                            <strong className="text-white-50">Director:</strong> {pelicula.director || 'No especificado'}
                         </div>
                         <div className="col-sm-6">
-                            <strong className="text-white">País:</strong> {pelicula.pais || 'N/A'}
+                            <strong className="text-white-50">País:</strong> {pelicula.pais || 'N/A'}
                         </div>
                     </div>
 
                     {/* Sinopsis */}
-                    <p className="text-white-50 fst-italic mb-4" style={{ fontSize: '0.88rem', lineHeight: '1.5' }}>
+                    <p className="text-white-50 fst-italic mb-4" style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
                         "{pelicula.sinopsis || 'Sin descripción disponible.'}"
                     </p>
 
-                    <div style={{ borderTop: '1px solid #282828', paddingTop: '16px' }}>
-                        <h5 className="mb-3 text-white" style={{ fontSize: '0.95rem', fontWeight: 600 }}>
-                            <i className="fas fa-comments me-2 text-white-50"></i>
-                            Comentarios {pelicula.comentarios?.length ? `(${pelicula.comentarios.length})` : ''}
-                        </h5>
+                    <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
-                        <form onSubmit={enviarComentario} className="d-flex gap-2 mb-3">
-                            <input
-                                type="text"
-                                className="form-control form-control-sm"
-                                style={{ backgroundColor: '#1a1a1a', color: '#fff', border: '1px solid #333' }}
-                                placeholder="Escribe un comentario..."
-                                value={textoComentario}
-                                onChange={(e) => setTextoComentario(e.target.value)}
-                                maxLength={1000}
-                            />
-                            <button type="submit" className="btn btn-sm px-3" style={{ backgroundColor: '#5c8d89', color: '#fff' }} disabled={enviandoComentario}>
-                                Enviar
-                            </button>
-                        </form>
+                    {/* Comentarios */}
+                    <h5 className="mb-3" style={{ fontSize: '1rem', fontWeight: 600 }}>
+                        <i className="fas fa-comments me-2 text-white-50"></i>
+                        Comentarios {pelicula.comentarios?.length ? `(${pelicula.comentarios.length})` : ''}
+                    </h5>
 
-                        <div className="d-flex flex-column gap-2" style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                            {pelicula.comentarios && pelicula.comentarios.length > 0 ? (
-                                pelicula.comentarios.map((c) => (
-                                    <div key={c.id} className="p-2 rounded" style={{ backgroundColor: '#1c1c1c', fontSize: '0.8rem', border: '1px solid #262626' }}>
-                                        <div className="d-flex justify-content-between mb-1">
-                                            <strong style={{ color: c.es_mio ? '#5c8d89' : '#fff' }}>{c.usuario}</strong>
-                                            <span className="text-white-50" style={{ fontSize: '0.68rem' }}>{c.fecha}</span>
-                                        </div>
-                                        <div className="text-white-50">{c.texto}</div>
+                    <form onSubmit={enviarComentario} className="d-flex gap-2 mb-3">
+                        <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            style={{ backgroundColor: '#1a1a1a', color: '#fff', border: '1px solid #333' }}
+                            placeholder="Escribe un comentario..."
+                            value={textoComentario}
+                            onChange={(e) => setTextoComentario(e.target.value)}
+                            maxLength={1000}
+                        />
+                        <button type="submit" className="btn btn-sm px-3" style={{ backgroundColor: '#5c8d89', color: '#fff' }} disabled={enviandoComentario}>
+                            Enviar
+                        </button>
+                    </form>
+
+                    <div className="d-flex flex-column gap-2" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                        {pelicula.comentarios && pelicula.comentarios.length > 0 ? (
+                            pelicula.comentarios.map((c) => (
+                                <div key={c.id} className="p-2 rounded" style={{ backgroundColor: '#1f1f1f', fontSize: '0.82rem' }}>
+                                    <div className="d-flex justify-content-between">
+                                        <strong style={{ color: c.es_mio ? '#5c8d89' : '#fff' }}>{c.usuario}</strong>
+                                        <span className="text-white-50" style={{ fontSize: '0.7rem' }}>{c.fecha}</span>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="text-white-50" style={{ fontSize: '0.8rem' }}>Sé el primero en comentar esta película.</div>
-                            )}
-                        </div>
+                                    <div className="text-white-50">{c.texto}</div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-white-50" style={{ fontSize: '0.82rem' }}>Sé el primero en comentar esta película.</div>
+                        )}
                     </div>
                 </div>
             </div>

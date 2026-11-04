@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use App\Models\ValoracionPelicula;
 
-
-
 class Pelicula extends Model
 {
     use HasFactory;
@@ -34,13 +32,40 @@ class Pelicula extends Model
         'activa',
     ];
 
-    // Convierte automáticamente el JSON a array de PHP y tipos booleanos/enteros
+    // Se eliminó 'plataformas_streaming' del cast array para que acepte el tipo SET de MySQL perfectamente
     protected $casts = [
-        'plataformas_streaming' => 'array',
         'activa' => 'boolean',
         'anio' => 'integer',
         'duracion_min' => 'integer',
     ];
+
+    /**
+     * Accesor para convertir el campo SET de la BD en un array automáticamente cuando se consulta en Laravel.
+     */
+    public function getPlataformasStreamingAttribute($value)
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!$value) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', $value))));
+    }
+
+    /**
+     * Mutador para convertir un array de plataformas en un string separado por comas antes de guardarlo en el tipo SET.
+     */
+    public function setPlataformasStreamingAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['plataformas_streaming'] = implode(',', array_filter($value));
+        } else {
+            $this->attributes['plataformas_streaming'] = $value;
+        }
+    }
 
     /**
      * Accesor para obtener la URL pública completa del póster.
@@ -84,7 +109,7 @@ class Pelicula extends Model
     }
 
     /**
-     * Relación: Una película tiene muchas Reseñas (AÑADIDA PARA ESTADÍSTICAS).
+     * Relación: Una película tiene muchas Reseñas.
      */
     public function resenas()
     {
@@ -96,9 +121,8 @@ class Pelicula extends Model
         return $this->hasMany(ValoracionPelicula::class, 'pelicula_id');
     }
 
-
     /**
-     * Relación: Una película tiene muchas Valoraciones (Opcional según tu BD).
+     * Relación: Una película tiene muchas Valoraciones.
      */
     public function valoraciones()
     {

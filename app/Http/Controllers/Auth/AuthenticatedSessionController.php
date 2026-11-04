@@ -7,92 +7,93 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
-            'canResetPassword' => Route::has('password.request'),
+            'canResetPassword' => \Illuminate\Support\Facades\Route::has('password.request'),
             'status' => session('status'),
         ]);
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse|Response
     {
-        // 1. Ejecuta la validación y autenticación de credenciales
         $request->authenticate();
 
-        /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // ========================================================
-        // VALIDACIÓN DE ESTADO INACTIVO
-        // ========================================================
-        if ($user && strtolower($user->estado ?? 'activo') === 'inactivo') {
-            Auth::logout();
+        // Cuenta desactivada
+        if (isset($user->estado) && $user->estado !== 'activo') {
+            Auth::guard('web')->logout();
             $request->session()->invalidate();
-            $request->session()->regenerateToken();
 
-            throw ValidationException::withMessages([
-                'correo' => 'Tu cuenta se encuentra inactiva. Comunícate con el administrador.',
-            ]);
+            return back()->withErrors(['correo' => 'Tu cuenta está inactiva.']);
         }
-        // ========================================================
 
+        // Una sola sesión activa por cuenta (otra pestaña u otro dispositivo)
+        $tabId = $request->attributes->get('tab_id');
+        $limite = now()->subMinutes(\App\Http\Middleware\CheckUserActiveSession::MINUTOS_INACTIVIDAD);
+
+        // Las sesiones vencidas por inactividad ya no cuentan
+        DB::table('user_active_sessions')
+            ->where('user_id', $user->id)
+            ->where('updated_at', '<', $limite)
+            ->delete();
+
+        $otras = DB::table('user_active_sessions')
+            ->where('user_id', $user->id)
+            ->where('tab_session_id', '!=', (string) $tabId);
+
+        if ($otras->exists()) {
+            if (!$request->boolean('force_login')) {
+                Auth::guard('web')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                // Mismo contrato que Login.jsx: session_conflict + conflict_email
+                return Inertia::render('Auth/Login', [
+                    'canResetPassword' => \Illuminate\Support\Facades\Route::has('password.request'),
+                    'status' => session('status'),
+                    'session_conflict' => true,
+                    'conflict_email' => $request->input('correo'),
+                ]);
+            }
+
+            // El usuario aceptó: se cierra la otra sesión (su siguiente petición la manda al login)
+            $otras->delete();
+        }
+
+        // Sin "recordarme": la cookie remember es compartida por todas las pestañas
+        // y rompería el aislamiento por pestaña.
         $request->session()->regenerate();
 
-        // ========================================================
-        // CONTROL DE SESIÓN ÚNICA (Evitar sesiones concurrentes)
-        // ========================================================
-        $user->active_session_id = session()->getId();
-        $user->save();
-        // ========================================================
-
-        // 2. Redirección basada en roles
-        if ($user->rol === 'administrador' || $user->rol === 'admin') {
-            return redirect()->intended(route('admin.dashboard', absolute: false));
-        }
-
-        if ($user->rol === 'editor') {
-            return redirect()->intended(route('editor.dashboard', absolute: false));
-        }
-
-        // Para usuarios u otros roles, los mandamos al inicio general
-        return redirect()->intended(route('user.inicio', absolute: false));
+        return redirect()->intended($this->rutaPorRol($user));
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-
-        // Limpiamos el identificador de sesión activa al cerrar sesión
-        if ($user) {
-            $user->active_session_id = null;
-            $user->save();
-        }
-
+        // El listener del evento Logout borra el registro de ESTA pestaña
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
     }
-}
 
+    private function rutaPorRol($user): string
+    {
+        $rol = strtolower((string) ($user->rol ?? 'usuario'));
+
+        return match ($rol) {
+            'administrador', 'admin' => route('admin.dashboard', absolute: false),
+            'editor' => route('editor.dashboard', absolute: false),
+            default => route('user.inicio', absolute: false),
+        };
+    }
+}

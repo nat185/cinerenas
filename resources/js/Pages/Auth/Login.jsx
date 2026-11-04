@@ -12,6 +12,8 @@ export default function Login({ status, canResetPassword, session_conflict, conf
     });
 
     const [showStatus, setShowStatus] = useState(true);
+    const [showPassword, setShowPassword] = useState(false);
+
     useEffect(() => {
         setShowStatus(true);
     }, [status]);
@@ -33,7 +35,7 @@ export default function Login({ status, canResetPassword, session_conflict, conf
         e.preventDefault();
         data.force_login = false;
         post(route('login'), {
-            onError: () => reset('password'),
+            onError: () => reset('contrasena'),
         });
     };
 
@@ -170,25 +172,65 @@ export default function Login({ status, canResetPassword, session_conflict, conf
                                             className="text-white-50 small mb-1 text-uppercase fw-semibold"
                                             style={{ letterSpacing: '0.8px', fontSize: '0.75rem' }}
                                         />
-                                        <TextInput
-                                            id="password"
-                                            type="password"
-                                            name="password"
-                                            value={data.contrasena}
-                                            className="mt-1 block w-full form-control bg-dark text-white py-2"
-                                            style={{
-                                                borderColor: '#64a19d',
-                                                boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)',
-                                                fontSize: '0.9rem'
-                                            }}
-                                            autoComplete="current-password"
-                                            onChange={(e) => setData('contrasena', e.target.value)}
-                                        />
+                                        <div className="position-relative">
+                                            <TextInput
+                                                id="password"
+                                                type={showPassword ? "text" : "password"}
+                                                name="password"
+                                                value={data.contrasena}
+                                                className="mt-1 block w-full form-control bg-dark text-white py-2 pe-5"
+                                                style={{
+                                                    borderColor: '#64a19d',
+                                                    boxShadow: '0 0 5px rgba(100, 161, 157, 0.3)',
+                                                    fontSize: '0.9rem'
+                                                }}
+                                                autoComplete="current-password"
+                                                onChange={(e) => setData('contrasena', e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="position-absolute top-50 end-0 translate-middle-y me-2 mt-1 d-flex align-items-center justify-content-center border-0 bg-transparent p-0"
+                                                style={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    color: '#64a19d',
+                                                    cursor: 'pointer',
+                                                    transition: 'color 0.2s ease, transform 0.2s ease',
+                                                    outline: 'none',
+                                                    boxShadow: 'none'
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.color = '#8fd0cb'; e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.color = '#64a19d'; e.currentTarget.style.transform = ''; }}
+                                                title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                                                aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                                            >
+                                                {showPassword ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                                                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                                                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                                                        <line x1="1" y1="1" x2="23" y2="23" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                        <circle cx="12" cy="12" r="3" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
                                         <InputError message={errors.contrasena} className="mt-1 text-danger small" />
                                     </div>
 
                                     {session_conflict ? (
                                         <div className="d-grid gap-2 mt-4">
+                                            <div
+                                                className="text-start small py-2 px-3"
+                                                style={{ background: 'rgba(255,107,107,0.1)', border: '1px solid #ff6b6b', color: '#ff6b6b', borderRadius: '8px', fontSize: '0.8rem' }}
+                                            >
+                                                Tienes una sesión activa en este momento en otra pestaña o dispositivo. ¿Deseas cerrarla y continuar aquí?
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={forceLoginSubmit}
@@ -246,5 +288,3 @@ export default function Login({ status, canResetPassword, session_conflict, conf
         </div>
     );
 }
-
-

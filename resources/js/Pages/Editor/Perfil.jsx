@@ -7,6 +7,37 @@ const COLORS = {
     bg: '#f8f9fa', bgLight: '#f1f5f9', purple: '#6f42c1'
 };
 
+// Botón de ojo para ver / ocultar contraseña (solo el icono, sin contorno)
+function OjoContrasena({ visible, onToggle, color = '#64748b', hover = '#0f172a', size = 20, offsetTop = 0 }) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            tabIndex={-1}
+            className="position-absolute top-50 end-0 translate-middle-y me-2 d-flex align-items-center justify-content-center border-0 bg-transparent p-0"
+            style={{ width: '28px', height: '28px', marginTop: offsetTop, color, cursor: 'pointer', outline: 'none', boxShadow: 'none', transition: 'color 0.2s ease' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = hover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = color; }}
+            title={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+            aria-label={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+        >
+            {visible ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+            ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            )}
+        </button>
+    );
+}
+
 export default function EditorPerfil({ auth }) {
     const { flash } = usePage().props;
     const [mostrarFlash, setMostrarFlash] = useState(false);
@@ -105,23 +136,16 @@ export default function EditorPerfil({ auth }) {
                                     {/* Contraseña Actual */}
                                     <div className="mb-2">
                                         <label className="form-label text-dark fw-semibold mb-1" style={{ fontSize: '0.78rem' }}>Contraseña actual</label>
-                                        <div className="input-group input-group-sm">
+                                        <div className="position-relative">
                                             <input 
                                                 type={verActual ? "text" : "password"} 
-                                                className="form-control" 
+                                                className="form-control form-control-sm pe-5" 
                                                 placeholder="Ingresa tu contraseña actual"
                                                 value={form.data.current_password} 
                                                 onChange={(e) => form.setData('current_password', e.target.value)} 
                                                 style={{ fontSize: '0.82rem' }} 
                                             />
-                                            <button 
-                                                type="button" 
-                                                className="btn btn-outline-secondary border px-3" 
-                                                onClick={() => setVerActual(!verActual)}
-                                                style={{ color: COLORS.purple }}
-                                            >
-                                                <i className={`fas ${verActual ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                            </button>
+                                            <OjoContrasena visible={verActual} onToggle={() => setVerActual(!verActual)} hover={COLORS.accent} size={18} />
                                         </div>
                                         {form.errors.current_password && <div className="text-danger small mt-1" style={{ fontSize: '0.72rem' }}>{form.errors.current_password}</div>}
                                     </div>
@@ -129,23 +153,16 @@ export default function EditorPerfil({ auth }) {
                                     {/* Nueva Contraseña */}
                                     <div className="mb-2">
                                         <label className="form-label text-dark fw-semibold mb-1" style={{ fontSize: '0.78rem' }}>Nueva contraseña</label>
-                                        <div className="input-group input-group-sm">
+                                        <div className="position-relative">
                                             <input 
                                                 type={verNueva ? "text" : "password"} 
-                                                className="form-control" 
+                                                className="form-control form-control-sm pe-5" 
                                                 placeholder="Mínimo 8 caracteres (déjalo vacío si no deseas cambiarla)"
                                                 value={form.data.password} 
                                                 onChange={(e) => form.setData('password', e.target.value)} 
                                                 style={{ fontSize: '0.82rem' }} 
                                             />
-                                            <button 
-                                                type="button" 
-                                                className="btn btn-outline-secondary border px-3" 
-                                                onClick={() => setVerNueva(!verNueva)}
-                                                style={{ color: COLORS.purple }}
-                                            >
-                                                <i className={`fas ${verNueva ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                            </button>
+                                            <OjoContrasena visible={verNueva} onToggle={() => setVerNueva(!verNueva)} hover={COLORS.accent} size={18} />
                                         </div>
                                         {form.errors.password && <div className="text-danger small mt-1" style={{ fontSize: '0.72rem' }}>{form.errors.password}</div>}
                                     </div>
@@ -153,23 +170,16 @@ export default function EditorPerfil({ auth }) {
                                     {/* Confirmar Nueva Contraseña */}
                                     <div className="mb-3">
                                         <label className="form-label text-dark fw-semibold mb-1" style={{ fontSize: '0.78rem' }}>Confirmar nueva contraseña</label>
-                                        <div className="input-group input-group-sm">
+                                        <div className="position-relative">
                                             <input 
                                                 type={verConfirmar ? "text" : "password"} 
-                                                className="form-control" 
+                                                className="form-control form-control-sm pe-5" 
                                                 placeholder="Repite la nueva contraseña"
                                                 value={form.data.password_confirmation} 
                                                 onChange={(e) => form.setData('password_confirmation', e.target.value)} 
                                                 style={{ fontSize: '0.82rem' }} 
                                             />
-                                            <button 
-                                                type="button" 
-                                                className="btn btn-outline-secondary border px-3" 
-                                                onClick={() => setVerConfirmar(!verConfirmar)}
-                                                style={{ color: COLORS.purple }}
-                                            >
-                                                <i className={`fas ${verConfirmar ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                            </button>
+                                            <OjoContrasena visible={verConfirmar} onToggle={() => setVerConfirmar(!verConfirmar)} hover={COLORS.accent} size={18} />
                                         </div>
                                     </div>
 
@@ -190,4 +200,3 @@ export default function EditorPerfil({ auth }) {
         </AuthenticatedLayout>
     );
 }
-

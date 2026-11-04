@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ValoracionPelicula extends Model
 {
     protected $table = 'valoraciones_peliculas';
-    public $timestamps = false; // La tabla usa 'creado' y 'actualizado' en lugar de created_at/updated_at
+    public $timestamps = false;
 
     protected $fillable = [
         'usuario_id',
@@ -16,17 +16,6 @@ class ValoracionPelicula extends Model
         'creado',
         'actualizado',
     ];
-
-    protected static function booted()
-    {
-        static::creating(function ($model) {
-            $model->creado = now()->toDateString();
-        });
-
-        static::updating(function ($model) {
-            $model->actualizado = now()->toDateString();
-        });
-    }
 
     public function usuario()
     {

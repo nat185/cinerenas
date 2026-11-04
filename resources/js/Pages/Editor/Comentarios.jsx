@@ -141,10 +141,16 @@ export default function EditorComentarios({ auth, comentarios = [] }) {
 
     const handleEnviarReporte = (e) => {
         e.preventDefault();
-        const motivoEstructurado = `[${form.data.motivo}] "${getContenido(seleccionado)}"`;
-        
-        form.transform(() => ({ motivo: motivoEstructurado })).post(route('editor.comentarios.reportar', seleccionado.id), {
+        // En Inertia, transform() no devuelve el formulario: se llama aparte y luego se envía.
+        form.transform((data) => ({
+            tipo_reporte: data.motivo,
+            motivo: `"${getContenido(seleccionado)}"`,
+        }));
+
+        form.post(route('editor.comentarios.reportar', seleccionado.id), {
+            preserveScroll: true,
             onSuccess: () => { form.reset(); setVistaActiva('tabla'); },
+            onFinish: () => form.transform((data) => data),
         });
     };
 
@@ -341,4 +347,3 @@ export default function EditorComentarios({ auth, comentarios = [] }) {
         </AuthenticatedLayout>
     );
 }
-
