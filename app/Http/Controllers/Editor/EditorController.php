@@ -13,6 +13,7 @@ use App\Models\ValoracionResena;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -51,6 +52,57 @@ class EditorController extends Controller
         if (Auth::user()->rol !== 'editor') {
             abort(403, 'No tienes permisos para entrar aquí.');
         }
+    }
+
+    /**
+     * Sube el archivo de póster a Cloudinary y devuelve su URL segura persistente.
+     */
+    private function subirPosterACloudinary($archivo): ?string
+    {
+        $cloudName = env('CLOUDINARY_CLOUD_NAME');
+        $apiKey    = env('CLOUDINARY_API_KEY');
+        $apiSecret = env('CLOUDINARY_API_SECRET');
+
+        if (!$cloudName || !$apiKey || !$apiSecret) {
+            return null;
+        }
+
+        $timestamp = time();
+        $folder    = 'cinerenas/posters';
+        $publicId  = uniqid('poster_');
+
+        $paramsToSign = [
+            'folder'    => $folder,
+            'public_id' => $publicId,
+            'timestamp' => $timestamp,
+        ];
+        ksort($paramsToSign);
+
+        $stringToSign = collect($paramsToSign)
+            ->map(fn ($v, $k) => "{$k}={$v}")
+            ->implode('&') . $apiSecret;
+
+        $signature = sha1($stringToSign);
+
+        $nombreOriginal = $archivo->getClientOriginalName() ?: ($publicId . '.jpg');
+
+        $response = Http::attach(
+            'file',
+            file_get_contents($archivo->getRealPath()),
+            $nombreOriginal
+        )->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
+            'api_key'   => $apiKey,
+            'timestamp' => $timestamp,
+            'signature' => $signature,
+            'folder'    => $folder,
+            'public_id' => $publicId,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('secure_url');
+        }
+
+        return null;
     }
 
     public function dashboard(Request $request)
@@ -193,7 +245,12 @@ class EditorController extends Controller
 
         $posterPath = null;
         if ($request->hasFile('poster')) {
-            $posterPath = '/storage/' . $request->file('poster')->store('posters', 'public');
+            $urlCloudinary = $this->subirPosterACloudinary($request->file('poster'));
+            if ($urlCloudinary) {
+                $posterPath = $urlCloudinary;
+            } else {
+                $posterPath = '/storage/' . $request->file('poster')->store('posters', 'public');
+            }
         }
 
         $plataformasArray = $validated['plataformas'] ?? [];
@@ -262,13 +319,18 @@ class EditorController extends Controller
         }
 
         if ($request->hasFile('poster')) {
-            if ($pelicula->poster_path) {
-                $oldPath = str_replace('/storage/', '', $pelicula->poster_path);
-                if (Storage::disk('public')->exists($oldPath)) {
-                    Storage::disk('public')->delete($oldPath);
+            $urlCloudinary = $this->subirPosterACloudinary($request->file('poster'));
+            if ($urlCloudinary) {
+                $pelicula->poster_path = $urlCloudinary;
+            } else {
+                if ($pelicula->poster_path && !str_starts_with($pelicula->poster_path, 'http')) {
+                    $oldPath = str_replace('/storage/', '', $pelicula->poster_path);
+                    if (Storage::disk('public')->exists($oldPath)) {
+                        Storage::disk('public')->delete($oldPath);
+                    }
                 }
+                $pelicula->poster_path = '/storage/' . $request->file('poster')->store('posters', 'public');
             }
-            $pelicula->poster_path = '/storage/' . $request->file('poster')->store('posters', 'public');
         }
 
         $activa = ($validated['estado'] === 'archivada') ? 0 : 1;
