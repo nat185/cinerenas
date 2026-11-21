@@ -25,13 +25,13 @@ const control = {
 };
 
 const PLATAFORMAS_DISPONIBLES = [
-    'Netflix', 'Max', 'Disney+', 'Amazon Prime Video', 'Apple TV+', 
+    'Netflix', 'Max', 'Disney+', 'Amazon Prime Video', 'Apple TV+',
     'Paramount+', 'MUBI', 'Claro Video', 'Pluto TV', 'Tubi', 'Plex', 'Mercado Play'
 ];
 
 const PAISES_DISPONIBLES = [
-    'México', 'Estados Unidos', 'España', 'Argentina', 'Francia', 
-    'Reino Unido', 'Japón', 'Corea del Sur', 'Italia', 'Alemania', 
+    'México', 'Estados Unidos', 'España', 'Argentina', 'Francia',
+    'Reino Unido', 'Japón', 'Corea del Sur', 'Italia', 'Alemania',
     'Canadá', 'Brasil', 'Colombia', 'Chile', 'Otro'
 ];
 
@@ -344,8 +344,7 @@ export default function PeliculasVistas({ auth, peliculasVistas = [], generos = 
     };
 
     const generarPDF = () => {
-        const tieneSSL = window.location.protocol === 'https:';
-        const urlPagina = tieneSSL ? window.location.href : `${window.location.origin}/welcome`;
+        const urlPagina = 'https://cineresenas.duckdns.org';
 
         const contenidoVentana = window.open('', '_blank');
         const html = `
@@ -365,7 +364,6 @@ export default function PeliculasVistas({ auth, peliculasVistas = [], generos = 
                     <h1>CineReseñas - Películas Vistas</h1>
                     <div class="url-info">
                         <strong>URL del Sistema:</strong> <a href="${urlPagina}" target="_blank">${urlPagina}</a>
-                        ${!tieneSSL ? '<br><small style="color: #e63950;">(Certificado SSL/TLS no detectado: redirigido a página de bienvenida)</small>' : ''}
                     </div>
                     <p>Reporte generado el ${new Date().toLocaleDateString()}</p>
                     <table>
@@ -563,8 +561,16 @@ export default function PeliculasVistas({ auth, peliculasVistas = [], generos = 
                         </div>
                     </div>
 
-                    <div className="mb-4" style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem' }}>
-                        {filtradas.length} de {listaBase.length} películas vistas
+                    <div className="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2" style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem' }}>
+                        <span>{filtradas.length} de {listaBase.length} películas vistas</span>
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-outline-light"
+                            onClick={generarPDF}
+                            disabled={filtradas.length === 0}
+                        >
+                            Exportar / Imprimir PDF
+                        </button>
                     </div>
 
                     {/* Tabla con fondo claro y encabezados solicitados */}
@@ -606,38 +612,24 @@ export default function PeliculasVistas({ auth, peliculasVistas = [], generos = 
                                                     <span className="badge bg-secondary" style={{ fontSize: '0.72rem' }}>{pelicula.genero || 'Género'}</span>
                                                 </td>
                                                 <td className="text-muted" style={{ fontSize: '0.78rem' }}>{plats}</td>
-                                                <td className="text-muted" style={{ fontSize: '0.78rem' }}>{pelicula.fecha_agregado || 'N/A'}</td>
+                                                <td className="text-muted" style={{ fontSize: '0.78rem' }}>{pelicula.fecha_agregado || 'Vista'}</td>
                                                 <td className="text-end">
-                                                    <div className="d-flex align-items-center justify-content-end gap-1">
-                                                        {/* Botón Ver detalles */}
+                                                    <div className="d-inline-flex gap-1">
                                                         <button
                                                             type="button"
+                                                            className="btn btn-sm btn-outline-dark"
                                                             onClick={() => setAbiertaId(pelicula.id)}
-                                                            className="btn btn-sm d-flex align-items-center justify-content-center text-dark shadow-sm"
-                                                            style={{ backgroundColor: '#ffffff', border: '1px solid #ced4da', borderRadius: '4px', width: '32px', height: '32px' }}
-                                                            title="Ver detalles completos"
+                                                            title="Ver detalles"
                                                         >
-                                                            <i className="fas fa-eye" style={{ fontSize: '0.8rem', color: '#2a9d8f' }}></i>
+                                                            Ver
                                                         </button>
-                                                        {/* Botón Eliminar / Ocultar */}
                                                         <button
                                                             type="button"
+                                                            className="btn btn-sm btn-outline-danger"
                                                             onClick={() => ocultarVista(pelicula.id)}
-                                                            className="btn btn-sm d-flex align-items-center justify-content-center text-dark shadow-sm"
-                                                            style={{ backgroundColor: '#ffffff', border: '1px solid #ced4da', borderRadius: '4px', width: '32px', height: '32px' }}
-                                                            title="Eliminar / Ocultar de mis vistas"
+                                                            title="Quitar de vistas"
                                                         >
-                                                            <i className="fas fa-trash-alt" style={{ fontSize: '0.8rem', color: '#e63950' }}></i>
-                                                        </button>
-                                                        {/* Botón Generar PDF / Descargar en Acciones */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={generarPDF}
-                                                            className="btn btn-sm d-flex align-items-center justify-content-center text-dark shadow-sm"
-                                                            style={{ backgroundColor: '#ffffff', border: '1px solid #ced4da', borderRadius: '4px', width: '32px', height: '32px' }}
-                                                            title="Generar PDF / Descargar"
-                                                        >
-                                                            <i className="fas fa-file-pdf" style={{ fontSize: '0.8rem', color: '#e63950' }}></i>
+                                                            Quitar
                                                         </button>
                                                     </div>
                                                 </td>
@@ -648,19 +640,14 @@ export default function PeliculasVistas({ auth, peliculasVistas = [], generos = 
                             </table>
                         </div>
                     ) : (
-                        <div className="text-center py-5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                            No se encontraron películas vistas con esos filtros.
+                        <div className="text-center py-5 text-white-50">
+                            No hay películas vistas que coincidan con los filtros seleccionados.
                         </div>
                     )}
                 </div>
             </section>
 
-            {abierta && (
-                <PeliculaModal
-                    pelicula={abierta}
-                    onClose={() => setAbiertaId(null)}
-                />
-            )}
+            {abierta && <PeliculaModal pelicula={abierta} onClose={() => setAbiertaId(null)} />}
         </AuthenticatedLayout>
     );
 }
