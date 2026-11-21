@@ -102,7 +102,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
     const getGenero = (p) => p.genero?.nombre || 'Sin género';
 
     const getPoster = (p) => {
-        if (!p?.poster_path) return '/dist/assets/img/posters/default.jpg';
+        if (!p?.poster_path) return '/dist/assets/img/posters/default.png';
         if (p.poster_path.startsWith('http') || p.poster_path.startsWith('/')) return p.poster_path;
         return `/storage/${p.poster_path}`;
     };
