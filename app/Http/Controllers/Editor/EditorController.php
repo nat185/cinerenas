@@ -182,7 +182,10 @@ class EditorController extends Controller
 
         // Validación insensible a mayúsculas, minúsculas y espacios duplicados
         $tituloLimpio = strtolower(preg_replace('/\s+/', ' ', trim($validated['titulo'])));
-        $existeTitulo = Pelicula::whereRaw("LOWER(REGEXP_REPLACE(titulo, '[[:space:]]+', ' ')) = ?", [$tituloLimpio])->exists();
+        $existeTitulo = Pelicula::get(['id', 'titulo'])->contains(function ($peliculaExistente) use ($tituloLimpio) {
+            $existenteLimpio = strtolower(preg_replace('/\s+/', ' ', trim((string) $peliculaExistente->titulo)));
+            return $existenteLimpio === $tituloLimpio;
+        });
 
         if ($existeTitulo) {
             return redirect()->back()->withErrors(['titulo' => 'Ya existe una película registrada con este título (sin importar mayúsculas, minúsculas o espacios).'])->withInput();
@@ -247,9 +250,12 @@ class EditorController extends Controller
 
         // Validación insensible a mayúsculas, minúsculas y espacios, excluyendo la película actual
         $tituloLimpio = strtolower(preg_replace('/\s+/', ' ', trim($validated['titulo'])));
-        $existeTitulo = Pelicula::whereRaw("LOWER(REGEXP_REPLACE(titulo, '[[:space:]]+', ' ')) = ?", [$tituloLimpio])
-            ->where('id', '!=', $id)
-            ->exists();
+        $existeTitulo = Pelicula::where('id', '!=', $id)
+            ->get(['id', 'titulo'])
+            ->contains(function ($peliculaExistente) use ($tituloLimpio) {
+                $existenteLimpio = strtolower(preg_replace('/\s+/', ' ', trim((string) $peliculaExistente->titulo)));
+                return $existenteLimpio === $tituloLimpio;
+            });
 
         if ($existeTitulo) {
             return redirect()->back()->withErrors(['titulo' => 'Ya existe otra película registrada con este título.'])->withInput();
@@ -294,18 +300,18 @@ class EditorController extends Controller
         $this->checkEditor();
 
         $pelicula = Pelicula::findOrFail($id);
-        
+
         $estaInactiva = ($pelicula->activa == 0 || strtolower($pelicula->estado) === 'archivada');
 
         if ($estaInactiva) {
             $pelicula->update([
-                'activa' => 1, 
+                'activa' => 1,
                 'estado' => 'publicada'
             ]);
             $mensaje = 'La película ha sido reactivada y publicada correctamente.';
         } else {
             $pelicula->update([
-                'activa' => 0, 
+                'activa' => 0,
                 'estado' => 'archivada'
             ]);
             $mensaje = 'La película ha sido archivada e inhabilitada correctamente.';
