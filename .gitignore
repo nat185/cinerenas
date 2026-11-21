@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+.env
+.env.*
+respaldo_*.sql
+*.sql
