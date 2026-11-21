@@ -109,7 +109,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
 
     const handlePosterError = (e) => {
         e.currentTarget.onerror = null;
-        e.currentTarget.src = '/dist/assets/img/posters/default.jpg';
+        e.currentTarget.src = '/dist/assets/img/posters/default.png';
     };
 
     const esActiva = (p) => !(p.activa === false || p.activa === 0 || p.activa === '0' || p.estado === 'archivada');
