@@ -7,6 +7,7 @@ use App\Models\Genero;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -73,9 +74,17 @@ class PeliculasController extends Controller
             $image = $manager->read($request->file('poster'));
             $image->cover(600, 900);
 
-            $path = 'posters/' . uniqid() . '.webp';
-            Storage::disk('public')->put($path, (string) $image->toWebp(80));
-            $validated['poster_path'] = $path;
+            $contenidoWebp = (string) $image->toWebp(80);
+            $nombreArchivo = uniqid() . '.webp';
+            $urlCloudinary = $this->subirPosterACloudinary($contenidoWebp, $nombreArchivo);
+
+            if ($urlCloudinary) {
+                $validated['poster_path'] = $urlCloudinary;
+            } else {
+                $path = 'posters/' . $nombreArchivo;
+                Storage::disk('public')->put($path, $contenidoWebp);
+                $validated['poster_path'] = $path;
+            }
         }
 
         Pelicula::create($validated);
@@ -114,15 +123,23 @@ class PeliculasController extends Controller
             $image = $manager->read($request->file('poster'));
             $image->cover(600, 900);
 
-            $path = 'posters/' . uniqid() . '.webp';
-            Storage::disk('public')->put($path, (string) $image->toWebp(80));
-            
-            // Eliminar poster viejo si existe
-            if ($pelicula->poster_path && Storage::disk('public')->exists($pelicula->poster_path)) {
-                Storage::disk('public')->delete($pelicula->poster_path);
-            }
+            $contenidoWebp = (string) $image->toWebp(80);
+            $nombreArchivo = uniqid() . '.webp';
+            $urlCloudinary = $this->subirPosterACloudinary($contenidoWebp, $nombreArchivo);
 
-            $validated['poster_path'] = $path;
+            if ($urlCloudinary) {
+                $validated['poster_path'] = $urlCloudinary;
+            } else {
+                $path = 'posters/' . $nombreArchivo;
+                Storage::disk('public')->put($path, $contenidoWebp);
+
+                // Eliminar poster viejo si existe en el disco local
+                if ($pelicula->poster_path && !str_starts_with($pelicula->poster_path, 'http') && Storage::disk('public')->exists($pelicula->poster_path)) {
+                    Storage::disk('public')->delete($pelicula->poster_path);
+                }
+
+                $validated['poster_path'] = $path;
+            }
         }
 
         $pelicula->update($validated);
@@ -151,5 +168,54 @@ class PeliculasController extends Controller
         $estadoTexto = $pelicula->activa ? 'activada' : 'desactivada';
 
         return redirect()->back()->with('message', "La película fue {$estadoTexto} correctamente.");
+    }
+
+    /**
+     * Sube el póster procesado a Cloudinary y devuelve su URL segura persistente.
+     */
+    private function subirPosterACloudinary(string $contenidoBinario, string $nombreArchivo): ?string
+    {
+        $cloudName = env('CLOUDINARY_CLOUD_NAME');
+        $apiKey    = env('CLOUDINARY_API_KEY');
+        $apiSecret = env('CLOUDINARY_API_SECRET');
+
+        if (!$cloudName || !$apiKey || !$apiSecret) {
+            return null;
+        }
+
+        $timestamp = time();
+        $folder    = 'cinerenas/posters';
+        $publicId  = pathinfo($nombreArchivo, PATHINFO_FILENAME);
+
+        $paramsToSign = [
+            'folder'    => $folder,
+            'public_id' => $publicId,
+            'timestamp' => $timestamp,
+        ];
+        ksort($paramsToSign);
+
+        $stringToSign = collect($paramsToSign)
+            ->map(fn ($v, $k) => "{$k}={$v}")
+            ->implode('&') . $apiSecret;
+
+        $signature = sha1($stringToSign);
+
+        $response = Http::attach(
+            'file',
+            $contenidoBinario,
+            $nombreArchivo
+        )->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
+            'api_key'   => $apiKey,
+            'timestamp' => $timestamp,
+            'signature' => $signature,
+            'folder'    => $folder,
+            'public_id' => $publicId,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json('secure_url');
+        }
+
+        return null;
     }
 }
