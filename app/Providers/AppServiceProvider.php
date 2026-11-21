@@ -10,6 +10,7 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +24,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (
+            $this->app->environment('production')
+            || request()->isSecure()
+            || request()->header('x-forwarded-proto') === 'https'
+        ) {
+            URL::forceScheme('https');
+        }
+
         // Al iniciar sesión (desde cualquier controlador) se registra la pestaña
         Event::listen(Login::class, function (Login $event) {
             $request = request();
