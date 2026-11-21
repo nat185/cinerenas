@@ -29,10 +29,10 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
     const [seleccionada, setSeleccionada] = useState(null);
     const [imagenInfo, setImagenInfo] = useState({ tipo: 'N/A', peso: 'N/A', medidas: 'N/A' });
     const [posterZoom, setPosterZoom] = useState(false);
-    
+
     const [modalPoster, setModalPoster] = useState({ abierto: false, url: '', titulo: '' });
     const [mostrarInfoModal, setMostrarInfoModal] = useState(false);
-   
+
     const [mensajeErrorForm, setMensajeErrorForm] = useState(null);
 
     const formRef = useRef(null);
@@ -102,9 +102,14 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
     const getGenero = (p) => p.genero?.nombre || 'Sin género';
 
     const getPoster = (p) => {
-        if (!p.poster_path) return null;
+        if (!p?.poster_path) return '/dist/assets/img/posters/default.jpg';
         if (p.poster_path.startsWith('http') || p.poster_path.startsWith('/')) return p.poster_path;
         return `/storage/${p.poster_path}`;
+    };
+
+    const handlePosterError = (e) => {
+        e.currentTarget.onerror = null;
+        e.currentTarget.src = '/dist/assets/img/posters/default.jpg';
     };
 
     const esActiva = (p) => !(p.activa === false || p.activa === 0 || p.activa === '0' || p.estado === 'archivada');
@@ -134,7 +139,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
             const height = img.naturalHeight;
             let extension = url.split('.').pop().split(/\#|\?/)[0].toUpperCase();
             if (!['JPG', 'JPEG', 'PNG', 'WEBP'].includes(extension)) extension = 'WEBP/JPEG';
-           
+
             fetch(url)
                 .then(res => res.blob())
                 .then(blob => {
@@ -179,7 +184,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
         const idStr = String(p.id);
         const estado = (p.estado || '').toLowerCase();
         const anioStr = String(p.anio || '');
-       
+
         let plataformasStr = '';
         if (Array.isArray(p.plataformas_streaming)) {
             plataformasStr = p.plataformas_streaming.join(', ').toLowerCase();
@@ -226,14 +231,15 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
     const handleGuardar = (e) => {
         e.preventDefault();
         setMensajeErrorForm(null);
-        
 
         form.post('/editor/peliculas', {
+            forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => { 
-                form.reset(); 
-                setVistaActiva('tabla'); 
+            onSuccess: () => {
+                form.reset();
+                setVistaActiva('tabla');
                 setMensajeErrorForm(null);
+                router.reload({ only: ['peliculas'], preserveScroll: true });
             },
             onError: (errors) => {
                 if (errors.titulo) {
@@ -250,14 +256,20 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
     const handleActualizar = (e) => {
         e.preventDefault();
         setMensajeErrorForm(null);
-        
-        formEdit.data._method = 'PUT';
+
+        formEdit.transform((data) => ({
+            ...data,
+            _method: 'PUT',
+        }));
 
         formEdit.post(`/editor/peliculas/${formEdit.data.id}`, {
+            forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
                 setVistaActiva('tabla');
+                setSeleccionada(null);
                 setMensajeErrorForm(null);
+                router.reload({ only: ['peliculas'], preserveScroll: true });
             },
             onError: (errors) => {
                 if (errors.titulo) {
@@ -317,7 +329,13 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
     const handleToggle = (p) => {
         const activa = esActiva(p);
         if (confirm(`¿Deseas ${activa ? 'archivar e inhabilitar' : 'reactivar y publicar'} "${getTitulo(p)}"?`)) {
-            router.delete(`/editor/peliculas/${p.id}`, { preserveScroll: true, preserveState: true });
+            router.delete(`/editor/peliculas/${p.id}`, {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    router.reload({ only: ['peliculas'], preserveScroll: true });
+                }
+            });
         }
     };
 
@@ -326,16 +344,16 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
             {/* MENSAJE DE ERROR FLOTANTE SUPERIOR EN ROJO */}
             {mensajeErrorForm && (
                 <div className="alert alert-danger shadow py-2 px-3 d-flex align-items-center"
-                    style={{ 
-                        position: 'fixed', 
-                        top: '20px', 
-                        left: '50%', 
-                        transform: 'translateX(-50%)', 
-                        zIndex: 10000, 
-                        fontSize: '0.85rem', 
-                        borderRadius: '6px', 
+                    style={{
+                        position: 'fixed',
+                        top: '20px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 10000,
+                        fontSize: '0.85rem',
+                        borderRadius: '6px',
                         minWidth: '320px',
-                        maxWidth: '550px' 
+                        maxWidth: '550px'
                     }}>
                     <i className="fas fa-exclamation-triangle me-2 fs-5 text-danger"></i>
                     <div className="flex-grow-1 text-dark fw-bold">{mensajeErrorForm}</div>
@@ -354,7 +372,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
             )}
 
             {modalPoster.abierto && (
-                <div 
+                <div
                     onClick={cerrarModalPoster}
                     style={{
                         position: 'fixed',
@@ -368,7 +386,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                         padding: '20px'
                     }}
                 >
-                    <div 
+                    <div
                         onClick={(e) => e.stopPropagation()}
                         style={{
                             position: 'relative',
@@ -414,7 +432,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                             {modalPoster.titulo}
                         </h5>
 
-                        <div 
+                        <div
                             style={{ position: 'relative', display: 'inline-block' }}
                             onMouseEnter={() => setMostrarInfoModal(true)}
                             onMouseLeave={() => setMostrarInfoModal(false)}
@@ -430,7 +448,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                                     border: '1px solid #dee2e6',
                                     cursor: 'crosshair'
                                 }}
-                                onError={(e) => { e.target.src = '/dist/assets/img/posters/default.jpg'; }}
+                                onError={handlePosterError}
                             />
 
                             {mostrarInfoModal && (
@@ -583,12 +601,12 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                                 <div className="row g-3">
                                     <div className="col-md-5">
                                         <label className="form-label text-dark small fw-bold">Título *</label>
-                                        <input 
-                                            type="text" 
-                                            className={`form-control form-control-sm text-dark ${form.errors.titulo ? 'is-invalid' : ''}`} 
-                                            value={form.data.titulo} 
-                                            onChange={(e) => form.setData('titulo', e.target.value)} 
-                                            required 
+                                        <input
+                                            type="text"
+                                            className={`form-control form-control-sm text-dark ${form.errors.titulo ? 'is-invalid' : ''}`}
+                                            value={form.data.titulo}
+                                            onChange={(e) => form.setData('titulo', e.target.value)}
+                                            required
                                         />
                                         {form.errors.titulo && (
                                             <div className="text-danger small mt-1" style={{ fontSize: '0.78rem', fontWeight: 'bold' }}>
@@ -674,12 +692,12 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                                 <div className="row g-3">
                                     <div className="col-md-5">
                                         <label className="form-label text-dark small fw-bold">Título *</label>
-                                        <input 
-                                            type="text" 
-                                            className={`form-control form-control-sm text-dark ${formEdit.errors.titulo ? 'is-invalid' : ''}`} 
-                                            value={formEdit.data.titulo} 
-                                            onChange={(e) => formEdit.setData('titulo', e.target.value)} 
-                                            required 
+                                        <input
+                                            type="text"
+                                            className={`form-control form-control-sm text-dark ${formEdit.errors.titulo ? 'is-invalid' : ''}`}
+                                            value={formEdit.data.titulo}
+                                            onChange={(e) => formEdit.setData('titulo', e.target.value)}
+                                            required
                                         />
                                         {formEdit.errors.titulo && (
                                             <div className="text-danger small mt-1" style={{ fontSize: '0.78rem', fontWeight: 'bold' }}>
@@ -768,11 +786,11 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
 
                             <div className="row g-4 align-items-start">
                                 <div className="col-md-3 text-center d-flex flex-column align-items-center">
-                                    <div 
-                                        style={{ 
-                                            position: 'relative', 
+                                    <div
+                                        style={{
+                                            position: 'relative',
                                             display: 'inline-block',
-                                            cursor: 'pointer' 
+                                            cursor: 'pointer'
                                         }}
                                         onClick={() => {
                                             if (!posterZoom) analizarImagenPoster(getPoster(seleccionada));
@@ -792,7 +810,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                                                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                                                 transition: 'all 0.3s ease'
                                             }}
-                                            onError={(e) => { e.target.src = '/dist/assets/img/posters/default.jpg'; }}
+                                            onError={handlePosterError}
                                         />
 
                                         {posterZoom && (
@@ -813,10 +831,10 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                                             }} onClick={(e) => e.stopPropagation()}>
                                                 <div className="d-flex justify-content-between align-items-center mb-1 border-bottom pb-1">
                                                     <span className="fw-bold text-dark"><i className="fas fa-info-circle text-primary me-1"></i> Especificaciones</span>
-                                                    <button 
-                                                        type="button" 
-                                                        className="btn-close" 
-                                                        style={{ fontSize: '0.5rem' }} 
+                                                    <button
+                                                        type="button"
+                                                        className="btn-close"
+                                                        style={{ fontSize: '0.5rem' }}
                                                         onClick={() => setPosterZoom(false)}
                                                         title="Cerrar"
                                                     ></button>
@@ -885,9 +903,9 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                     )}
 
                     <div className="card border-0 shadow-sm bg-white" style={{ borderRadius: '4px' }}>
-                        <div 
-                            ref={tableRef} 
-                            className="table-responsive" 
+                        <div
+                            ref={tableRef}
+                            className="table-responsive"
                             style={{ maxHeight: '420px', overflowY: 'auto', position: 'relative' }}
                         >
                             <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
@@ -924,7 +942,7 @@ export default function EditorPeliculas({ auth, peliculas = [], generos = [] }) 
                                                                 cursor: 'pointer'
                                                             }}
                                                             title="Clic para ampliar póster"
-                                                            onError={(e) => { e.target.src = '/dist/assets/img/posters/default.jpg'; }}
+                                                            onError={handlePosterError}
                                                         />
                                                     </td>
                                                     <td className="fw-semibold text-dark">{getTitulo(peli)}</td>
