@@ -26,4 +26,6 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction \
 
 RUN chmod -R 775 storage bootstrap/cache
 
+CMD sh -c "php artisan storage:link || true && php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
+
 CMD sh -c "php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
