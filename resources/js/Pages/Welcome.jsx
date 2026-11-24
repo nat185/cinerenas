@@ -78,26 +78,27 @@ const REVIEWS = [
 
 export default function Welcome() {
     const sliderRef = useRef(null);
-    const [isHovered, setIsHovered] = useState(false);
+    const [pausarCarrusel, setPausarCarrusel] = useState(false);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            if (!isHovered && sliderRef.current) {
+            if (!pausarCarrusel && sliderRef.current) {
                 const maxScrollLeft = sliderRef.current.scrollWidth - sliderRef.current.clientWidth;
                 if (sliderRef.current.scrollLeft >= maxScrollLeft - 5) {
                     sliderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
                 } else {
-                    sliderRef.current.scrollBy({ left: 240, behavior: 'smooth' });
+                    sliderRef.current.scrollBy({ left: 220, behavior: 'smooth' });
                 }
             }
-        }, 3200);
+        }, 3500);
 
         return () => clearInterval(interval);
-    }, [isHovered]);
+    }, [pausarCarrusel]);
 
     const handleScroll = (direction) => {
+        setPausarCarrusel(true);
         if (sliderRef.current) {
-            const scrollAmount = 260;
+            const scrollAmount = 220;
             sliderRef.current.scrollBy({
                 left: direction === 'left' ? -scrollAmount : scrollAmount,
                 behavior: 'smooth'
@@ -119,13 +120,18 @@ export default function Welcome() {
             </Head>
 
             <style>{`
+                .welcome-page-wrap {
+                    overflow-x: clip;
+                    width: 100%;
+                }
+
                 .font-cinema-sub {
                     font-family: 'Pacifico', cursive;
-                    font-size: clamp(1.2rem, 2vw, 1.6rem);
+                    font-size: clamp(1.05rem, 4vw, 1.6rem);
                     color: #ffffff;
                     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                     display: block;
-                    margin-bottom: 0px;
+                    margin-bottom: 2px;
                 }
 
                 @keyframes cinemaAtmosphere {
@@ -141,17 +147,27 @@ export default function Welcome() {
 
                 .font-cinema-retro {
                     font-family: 'Bebas Neue', sans-serif;
-                    font-size: clamp(2.8rem, 5.5vw, 4rem);
+                    font-size: clamp(2.15rem, 10.5vw, 4rem);
                     line-height: 1.05;
-                    letter-spacing: 3px;
+                    letter-spacing: 2px;
                     color: #121212;
                     display: inline-block;
-                    transform: skewX(-5deg) rotate(-2deg);
+                    max-width: 100%;
+                    overflow-wrap: anywhere;
+                    transform: skewX(-4deg) rotate(-1.5deg);
                     text-shadow:
                         1px 1px 0px #e0e0e0, 2px 2px 0px #d6d6d6, 3px 3px 0px #cccccc,
-                        4px 4px 0px #c2c2c2, 5px 5px 0px #b8b8b8, 6px 6px 8px rgba(0, 0, 0, 0.6),
-                        10px 10px 15px rgba(0, 0, 0, 0.4);
+                        4px 4px 0px #c2c2c2, 5px 5px 0px #b8b8b8, 6px 6px 8px rgba(0, 0, 0, 0.6);
                     animation: fadeInHero 0.8s ease-out forwards, cinemaAtmosphere 5s ease-in-out infinite 1s;
+                }
+
+                .hero-lead-text {
+                    font-size: clamp(0.88rem, 3.6vw, 1rem);
+                    font-weight: 300;
+                    max-width: 620px;
+                    letter-spacing: 0.2px;
+                    line-height: 1.55;
+                    overflow-wrap: break-word;
                 }
 
                 .carousel-container { position: relative; width: 100%; }
@@ -160,8 +176,9 @@ export default function Welcome() {
                     display: flex;
                     overflow-x: auto;
                     scroll-behavior: smooth;
+                    -webkit-overflow-scrolling: touch;
                     scrollbar-width: none;
-                    padding: 15px 5px;
+                    padding: 15px 6px;
                 }
                 .carousel-slider::-webkit-scrollbar { display: none; }
 
@@ -181,7 +198,7 @@ export default function Welcome() {
                     background: rgba(10, 10, 12, 0.92);
                     backdrop-filter: blur(4px);
                     color: #fff;
-                    padding: 1rem;
+                    padding: 0.9rem;
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
@@ -219,11 +236,22 @@ export default function Welcome() {
                 .carousel-btn.next { right: 10px; }
 
                 @media (max-width: 768px) {
+                    .font-cinema-retro {
+                        letter-spacing: 1px;
+                        transform: skewX(-2deg) rotate(-1deg);
+                        text-shadow:
+                            1px 1px 0px #e0e0e0,
+                            2px 2px 0px #cccccc,
+                            4px 4px 6px rgba(0, 0, 0, 0.65);
+                    }
                     .carousel-btn {
-                        width: 36px;
-                        height: 36px;
+                        width: 34px;
+                        height: 34px;
+                        font-size: 0.85rem;
                         opacity: 0.75;
                     }
+                    .carousel-btn.prev { left: 4px; }
+                    .carousel-btn.next { right: 4px; }
                 }
 
                 .forest-transition-bg {
@@ -258,159 +286,168 @@ export default function Welcome() {
                 }
             `}</style>
 
-            {/* APARTADO HERO / PORTADA (usa fondo de MiPlantillaLayout) */}
-            <header className="masthead py-5" data-apartado="Hero / Portada" style={{ minHeight: '85vh', display: 'flex', alignItems: 'center' }}>
-                <div className="container px-4 px-lg-5 d-flex align-items-center justify-content-center">
-                    <div className="text-center py-4">
-                        <span className="font-cinema-sub">El Portal de</span>
-                        <h1 className="mx-auto my-2 font-cinema-retro">
-                            CINERESEÑAS
-                        </h1>
+            <div className="welcome-page-wrap">
+                {/* APARTADO HERO / PORTADA (usa fondo de MiPlantillaLayout) */}
+                <header className="masthead py-4 py-md-5" data-apartado="Hero / Portada" style={{ minHeight: '78vh', display: 'flex', alignItems: 'center' }}>
+                    <div className="container px-3 px-sm-4 px-lg-5 d-flex align-items-center justify-content-center">
+                        <div className="text-center py-3 w-100">
+                            <span className="font-cinema-sub">El Portal de</span>
+                            <h1 className="mx-auto my-2 font-cinema-retro">
+                                CINERESEÑAS
+                            </h1>
 
-                        <h2 className="text-white-50 mx-auto mt-3 mb-4" style={{ fontSize: '1rem', fontWeight: 300, maxWidth: '620px', letterSpacing: '0.3px', lineHeight: '1.6' }}>
-                            Donde las voces se pierden en la bruma y solo permanece el veredicto de la pantalla. Un santuario silencioso para desentrañar historias, discutir teorías sin rostro y calificar el arte del cine.
-                        </h2>
+                            <h2 className="text-white-50 mx-auto mt-3 mb-4 px-1 hero-lead-text">
+                                Donde las voces se pierden en la bruma y solo permanece el veredicto de la pantalla. Un santuario silencioso para desentrañar historias, discutir teorías sin rostro y calificar el arte del cine.
+                            </h2>
 
-                        <Link className="btn btn-primary text-uppercase px-4 py-2.5 rounded-pill fw-bold shadow" href={route('login')} style={{ fontSize: '0.9rem' }}>
-                            Comenzar Ahora
-                        </Link>
+                            <Link className="btn btn-primary text-uppercase px-4 py-2 rounded-pill fw-bold shadow" href={route('login')} style={{ fontSize: '0.88rem' }}>
+                                Comenzar Ahora
+                            </Link>
+                        </div>
                     </div>
-                </div>
-            </header>
+                </header>
 
-            {/* APARTADO 1: CARRUSEL DE PÓSTERS (#trending) */}
-            <section className="py-5 forest-transition-bg text-white position-relative" id="trending" data-apartado="Carrusel Trending">
-                <div className="container px-4 px-lg-5 mb-3 text-center">
-                    <h3 className="fw-bold text-white fs-4 mb-2">Historias Guardadas en la Penumbra</h3>
-                    <p className="text-white-50 mx-auto small" style={{ maxWidth: '680px', lineHeight: '1.5' }}>
-                        Desliza entre los archivos cinemáticos. Mantén el cursor sobre cualquier póster para revelar los fragmentos y notas dejadas por el grupo editorial.
-                    </p>
-                </div>
+                {/* APARTADO 1: CARRUSEL DE PÓSTERS (#trending) */}
+                <section className="py-5 forest-transition-bg text-white position-relative" id="trending" data-apartado="Carrusel Trending">
+                    <div className="container px-3 px-sm-4 px-lg-5 mb-3 text-center">
+                        <h3 className="fw-bold text-white mb-2" style={{ fontSize: 'clamp(1.2rem, 4.5vw, 1.65rem)' }}>
+                            Historias Guardadas en la Penumbra
+                        </h3>
+                        <p className="text-white-50 mx-auto mb-0 hero-lead-text">
+                            Desliza entre los archivos cinemáticos. Mantén el cursor o toca cualquier póster para revelar los fragmentos y notas dejadas por el grupo editorial.
+                        </p>
+                    </div>
 
-                <div
-                    className="container-fluid px-2 px-md-4 carousel-container"
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
-                >
-                    <button className="carousel-btn prev" onClick={() => handleScroll('left')} aria-label="Anterior">❮</button>
-                    <button className="carousel-btn next" onClick={() => handleScroll('right')} aria-label="Siguiente">❯</button>
+                    <div
+                        className="container-fluid px-2 px-md-4 carousel-container"
+                        onMouseEnter={() => setIsHovered(true)}
+                        onMouseLeave={() => setIsHovered(false)}
+                        onTouchStart={() => setPausarCarrusel(true)}
+                    >
+                        <button className="carousel-btn prev" onClick={() => handleScroll('left')} aria-label="Anterior">❮</button>
+                        <button className="carousel-btn next" onClick={() => handleScroll('right')} aria-label="Siguiente">❯</button>
 
-                    <div className="carousel-slider" ref={sliderRef}>
-                        {MOVIES.map((item, idx) => (
-                            <div key={idx} className="pe-3 flex-shrink-0" style={{ width: '220px' }}>
-                                <div className="card movie-card bg-dark text-white rounded-3 overflow-hidden h-100 position-relative shadow-sm">
-                                    <div className="movie-review-overlay">
-                                        <span className="badge bg-warning text-dark mb-2 px-2 py-1 fw-bold" style={{ fontSize: '0.7rem' }}>
-                                            {item.seccion}
-                                        </span>
-                                        <p className="fst-italic mb-2 text-white-50" style={{ fontSize: '0.8rem', lineHeight: '1.35' }}>
-                                            "{item.review}"
-                                        </p>
-                                        <span className="fw-bold tracking-wide text-info" style={{ fontSize: '0.75rem' }}>
-                                            {item.year} • {item.rating}
-                                        </span>
+                        <div className="carousel-slider" ref={sliderRef}>
+                            {MOVIES.map((item, idx) => (
+                                <div key={idx} className="pe-3 flex-shrink-0" style={{ width: '195px' }}>
+                                    <div className="card movie-card bg-dark text-white rounded-3 overflow-hidden h-100 position-relative shadow-sm">
+                                        <div className="movie-review-overlay">
+                                            <span className="badge bg-warning text-dark mb-2 px-2 py-1 fw-bold" style={{ fontSize: '0.68rem' }}>
+                                                {item.seccion}
+                                            </span>
+                                            <p className="fst-italic mb-2 text-white-50" style={{ fontSize: '0.76rem', lineHeight: '1.35' }}>
+                                                "{item.review}"
+                                            </p>
+                                            <span className="fw-bold tracking-wide text-info" style={{ fontSize: '0.72rem' }}>
+                                                {item.year} • {item.rating}
+                                            </span>
+                                        </div>
+
+                                        <div style={{ height: '270px', overflow: 'hidden' }}>
+                                            <img
+                                                src={item.img}
+                                                alt={`${item.title} (${item.seccion})`}
+                                                width="180"
+                                                height="270"
+                                                loading={idx < 2 ? 'eager' : 'lazy'}
+                                                decoding="async"
+                                                className="w-100 h-100 object-fit-cover"
+                                            />
+                                        </div>
+
+                                        <div className="card-body p-2 bg-dark text-center">
+                                            <h6 className="fw-bold mb-1 text-truncate small">{item.title}</h6>
+                                            <span className="small text-warning fw-semibold" style={{ fontSize: '0.78rem' }}>{item.rating}</span>
+                                        </div>
                                     </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
 
-                                    <div style={{ height: '300px', overflow: 'hidden' }}>
+                {/* APARTADO 2: SECCIÓN DE RESEÑAS (#projects) */}
+                <section className="projects-section bg-light py-5" id="projects" data-apartado="Análisis y Testimonios">
+                    <div className="container px-3 px-sm-4 px-lg-5">
+                        <div className="text-center mb-4">
+                            <h2 className="text-dark fw-bold" style={{ fontSize: 'clamp(1.35rem, 5vw, 1.9rem)' }}>
+                                Análisis y Testimonios Recientes
+                            </h2>
+                            <p className="text-muted small mb-0">Ecos de quienes ya han compartido sus perspectivas.</p>
+                        </div>
+
+                        {REVIEWS.map((review, index) => (
+                            <div key={index} className="row gx-0 mb-4 align-items-center bg-white rounded-4 shadow-sm p-3 border border-1 border-light">
+                                <div className={`col-xl-7 col-lg-7 ${review.reverse ? 'order-lg-2' : ''} mb-3 mb-lg-0`}>
+                                    <div className="overflow-hidden rounded-3 shadow-sm position-relative">
+                                        <span
+                                            className="badge bg-dark text-white position-absolute top-0 start-0 m-2"
+                                            style={{ fontSize: '0.68rem', zIndex: 2 }}
+                                        >
+                                            {review.seccion}
+                                        </span>
                                         <img
-                                            src={item.img}
-                                            alt={`${item.title} (${item.seccion})`}
-                                            width="200"
-                                            height="300"
-                                            loading={idx < 2 ? 'eager' : 'lazy'}
+                                            className="img-fluid w-100"
+                                            src={review.image}
+                                            alt={`${review.title} - ${review.seccion}`}
+                                            width="800"
+                                            height="240"
+                                            loading="lazy"
                                             decoding="async"
-                                            className="w-100 h-100 object-fit-cover"
+                                            style={{ maxHeight: '220px', objectFit: 'cover' }}
                                         />
                                     </div>
-
-                                    <div className="card-body p-2 bg-dark text-center">
-                                        <h6 className="fw-bold mb-1 text-truncate small">{item.title}</h6>
-                                        <span className="small text-warning fw-semibold" style={{ fontSize: '0.8rem' }}>{item.rating}</span>
+                                </div>
+                                <div className={`col-xl-5 col-lg-5 ${review.reverse ? 'order-lg-1 pe-lg-4' : 'ps-lg-4'}`}>
+                                    <div className="text-center text-lg-start">
+                                        <div className="text-warning mb-1 fs-6">{review.stars}</div>
+                                        <h3 className="text-dark fw-bold mb-2 fs-5">{review.title}</h3>
+                                        <p className="text-secondary mb-3 fst-italic small" style={{ fontFamily: 'Georgia, serif', lineHeight: '1.55' }}>
+                                            {review.quote}
+                                        </p>
+                                        <span className="text-dark fw-bold small text-uppercase" style={{ letterSpacing: '0.6px', fontSize: '0.72rem' }}>
+                                            — {review.author}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* APARTADO 2: SECCIÓN DE RESEÑAS (#projects) */}
-            <section className="projects-section bg-light py-5" id="projects" data-apartado="Análisis y Testimonios">
-                <div className="container px-4 px-lg-5">
-                    <div className="text-center mb-4">
-                        <h2 className="text-dark fw-bold fs-3">Análisis y Testimonios Recientes</h2>
-                        <p className="text-muted small">Ecos de quienes ya han compartido sus perspectivas.</p>
-                    </div>
-
-                    {REVIEWS.map((review, index) => (
-                        <div key={index} className="row gx-0 mb-4 align-items-center bg-white rounded-4 shadow-sm p-3 border border-1 border-light">
-                            <div className={`col-xl-7 col-lg-7 ${review.reverse ? 'order-lg-2' : ''} mb-3 mb-lg-0`}>
-                                <div className="overflow-hidden rounded-3 shadow-sm position-relative">
-                                    <span
-                                        className="badge bg-dark text-white position-absolute top-0 start-0 m-2"
-                                        style={{ fontSize: '0.7rem', zIndex: 2 }}
-                                    >
-                                        {review.seccion}
-                                    </span>
-                                    <img
-                                        className="img-fluid w-100"
-                                        src={review.image}
-                                        alt={`${review.title} - ${review.seccion}`}
-                                        width="800"
-                                        height="240"
-                                        loading="lazy"
-                                        decoding="async"
-                                        style={{ maxHeight: '240px', objectFit: 'cover' }}
-                                    />
-                                </div>
-                            </div>
-                            <div className={`col-xl-5 col-lg-5 ${review.reverse ? 'order-lg-1 pe-lg-4' : 'ps-lg-4'}`}>
-                                <div className="text-center text-lg-start">
-                                    <div className="text-warning mb-1 fs-6">{review.stars}</div>
-                                    <h3 className="text-dark fw-bold mb-2 fs-5">{review.title}</h3>
-                                    <p className="text-secondary mb-3 fst-italic small" style={{ fontFamily: 'Georgia, serif', lineHeight: '1.6' }}>
-                                        {review.quote}
-                                    </p>
-                                    <span className="text-dark fw-bold small text-uppercase" style={{ letterSpacing: '0.8px', fontSize: '0.75rem' }}>
-                                        — {review.author}
-                                    </span>
-                                </div>
+                {/* APARTADO 3: REGISTRO (#signup) */}
+                <section className="signup-section py-5 bg-black border-no-line" id="signup" data-apartado="Registro">
+                    <div className="container px-3 px-sm-4 px-lg-5">
+                        <div className="row gx-4 gx-lg-5">
+                            <div className="col-md-10 col-lg-8 mx-auto text-center">
+                                <h2 className="text-white mb-2 fw-bold" style={{ fontSize: 'clamp(1.35rem, 5vw, 1.9rem)' }}>
+                                    Forma Parte del Refugio
+                                </h2>
+                                <p className="text-white-50 mb-4 hero-lead-text mx-auto">
+                                    Crea tu identidad y comienza a calificar y escribir sobre el séptimo arte.
+                                </p>
+                                <Link className="btn btn-primary text-uppercase px-4 py-2 rounded-pill fw-bold shadow small" href={route('register')}>
+                                    Registrarse Gratis
+                                </Link>
                             </div>
                         </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* APARTADO 3: REGISTRO (#signup) */}
-            <section className="signup-section py-5 bg-black border-no-line" id="signup" data-apartado="Registro">
-                <div className="container px-4 px-lg-5">
-                    <div className="row gx-4 gx-lg-5">
-                        <div className="col-md-10 col-lg-8 mx-auto text-center">
-                            <h2 className="text-white mb-2 fw-bold fs-3">Forma Parte del Refugio</h2>
-                            <p className="text-white-50 mb-4 small" style={{ fontWeight: 300 }}>
-                                Crea tu identidad y comienza a calificar y escribir sobre el séptimo arte.
-                            </p>
-                            <Link className="btn btn-primary text-uppercase px-4 py-2.5 rounded-pill fw-bold shadow small" href={route('register')}>
-                                Registrarse Gratis
-                            </Link>
-                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* FOOTER */}
-            <footer className="bg-black text-white-50 py-3 border-no-line position-relative" data-apartado="Footer">
-                <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 100 }}>
-                    <button
-                        onClick={scrollToTop}
-                        className="btn-scroll-top rounded-circle shadow"
-                        style={{ width: '44px', height: '44px', fontSize: '1.1rem' }}
-                        aria-label="Volver arriba"
-                    >
-                        ↑
-                    </button>
-                </div>
-            </footer>
+                {/* FOOTER */}
+                <footer className="bg-black text-white-50 py-3 border-no-line position-relative" data-apartado="Footer">
+                    <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 100 }}>
+                        <button
+                            onClick={scrollToTop}
+                            className="btn-scroll-top rounded-circle shadow"
+                            style={{ width: '42px', height: '42px', fontSize: '1.05rem' }}
+                            aria-label="Volver arriba"
+                        >
+                            ↑
+                        </button>
+                    </div>
+                </footer>
+            </div>
         </MiPlantillaLayout>
     );
 }
