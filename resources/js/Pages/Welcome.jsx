@@ -218,6 +218,14 @@ export default function Welcome() {
                 .carousel-btn.prev { left: 10px; }
                 .carousel-btn.next { right: 10px; }
 
+                @media (max-width: 768px) {
+                    .carousel-btn {
+                        width: 36px;
+                        height: 36px;
+                        opacity: 0.75;
+                    }
+                }
+
                 .forest-transition-bg {
                     background: linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, #0c0f12 35%, #0c0f12 70%, #000000 100%);
                     border: none !important;
