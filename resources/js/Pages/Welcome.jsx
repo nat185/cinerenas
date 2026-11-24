@@ -147,7 +147,7 @@ export default function Welcome() {
 
                 .font-cinema-retro {
                     font-family: 'Bebas Neue', sans-serif;
-                    font-size: clamp(1.75rem, 8.2vw, 4rem);
+                    font-size: clamp(1.45rem, 6.6vw, 4rem);
                     line-height: 1.05;
                     letter-spacing: 2px;
                     color: #121212;
@@ -237,12 +237,13 @@ export default function Welcome() {
 
                 @media (max-width: 768px) {
                     .font-cinema-retro {
-                        letter-spacing: 0.5px;
-                        transform: skewX(-2deg) rotate(-1deg);
+                        font-size: clamp(1.45rem, 6.6vw, 2.2rem);
+                        letter-spacing: 0px;
+                        transform: none;
                         text-shadow:
                             1px 1px 0px #e0e0e0,
                             2px 2px 0px #cccccc,
-                            4px 4px 6px rgba(0, 0, 0, 0.65);
+                            3px 3px 5px rgba(0, 0, 0, 0.65);
                     }
                     .carousel-btn {
                         width: 34px;
